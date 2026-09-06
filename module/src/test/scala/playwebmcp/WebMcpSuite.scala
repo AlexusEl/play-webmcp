@@ -42,11 +42,17 @@ class WebMcpSuite extends FunSuite {
       intercept[IllegalArgumentException](Tool.create(name, "Search", schema, "search"))
     }
     for (json <- Seq("no json", "null", "[]", "{}", """{"type":"object","properties":[]}""",
+        """{"type":"object","properties":{"query":1}}""",
         """{"type":"object","properties":{"x":{}},"required":["x","x"]}""")) {
       intercept[IllegalArgumentException](Tool.create("search", "Search", json, "search"))
     }
     intercept[IllegalArgumentException](Tool.create("search", " ", schema, "search"))
     intercept[IllegalArgumentException](Tool.create("search", "Search", schema, ""))
+  }
+
+  test("namespaced names and boolean property schemas are preserved") {
+    val value = Tool.create("catalog.search", "Search", """{"type":"object","properties":{"extra":false}}""", "search")
+    assertEquals(value.toJson().path("name").asText(), "catalog.search")
   }
 
   test("Scala API produces the same tool contract as Java") {

@@ -29,6 +29,13 @@ public final class Tool {
         if (schema.has("properties") && !schema.get("properties").isObject()) {
             throw new IllegalArgumentException("inputSchema properties must be an object");
         }
+        if (schema.has("properties")) {
+            for (JsonNode property : schema.get("properties")) {
+                if (!property.isObject() && !property.isBoolean()) {
+                    throw new IllegalArgumentException("property schemas must be objects or booleans");
+                }
+            }
+        }
         if (schema.has("required")) {
             JsonNode required = schema.get("required");
             if (!required.isArray()) {
@@ -62,8 +69,8 @@ public final class Tool {
     }
 
     public static void requireName(String name) {
-        if (name == null || !name.matches("[A-Za-z0-9_-]{1,128}")) {
-            throw new IllegalArgumentException("name must contain 1-128 letters, digits, underscores or hyphens");
+        if (name == null || !name.matches("[A-Za-z0-9_.-]{1,128}")) {
+            throw new IllegalArgumentException("name must contain 1-128 letters, digits, underscores, dots or hyphens");
         }
     }
 
