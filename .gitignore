@@ -1,0 +1,14 @@
+target/
+project/project/
+.bsp/
+.bloop/
+.metals/
+.idea/
+.vscode/
+logs/
+node_modules/
+test-results/
+playwright-report/
+.env
+.env.*
+*.log
