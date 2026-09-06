@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>io.github.alexusel</groupId>
+    <artifactId>play-webmcp_2.13</artifactId>
+    <packaging>jar</packaging>
+    <description>play-webmcp</description>
+    <url>https://github.com/AlexusEl/play-webmcp</url>
+    <version>0.1.0</version>
+    <licenses>
+        <license>
+            <name>MIT</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <name>play-webmcp</name>
+    <organization>
+        <name>io.github.alexusel</name>
+        <url>https://github.com/AlexusEl/play-webmcp</url>
+    </organization>
+    <scm>
+        <url>https://github.com/AlexusEl/play-webmcp</url>
+        <connection>scm:git:git@github.com:AlexusEl/play-webmcp.git</connection>
+    </scm>
+    <developers>
+        <developer>
+            <id>AlexusEl</id>
+            <name>Alexandre EL</name>
+            <url>https://github.com/AlexusEl</url>
+        </developer>
+    </developers>
+    <dependencies>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>2.13.18</version>
+        </dependency>
+        <dependency>
+            <groupId>org.playframework</groupId>
+            <artifactId>play_2.13</artifactId>
+            <version>3.0.10</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scalameta</groupId>
+            <artifactId>munit_2.13</artifactId>
+            <version>1.1.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
