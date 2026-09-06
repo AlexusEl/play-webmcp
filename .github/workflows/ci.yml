@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore: [README.md]
   pull_request:
+    paths-ignore: [README.md]
   workflow_dispatch:
 
 permissions:
@@ -49,3 +51,18 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: sbt javaExample/stage scalaExample/stage
       - run: bash scripts/browser-check.sh
+
+  distribution:
+    name: Install published JARs in independent applications
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - run: >-
+          sbt 'set webmcp / publishTo := Some(Resolver.file("staging", file("target/maven-repository"))(Resolver.mavenStylePatterns))' +webmcp/publish
+      - run: WEBMCP_REPOSITORY="file://$PWD/target/maven-repository" bash scripts/consumer-check.sh
