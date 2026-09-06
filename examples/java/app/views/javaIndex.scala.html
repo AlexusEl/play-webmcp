@@ -1,0 +1,43 @@
+@(searchTool: playwebmcp.Tool, supportTool: playwebmcp.Tool, products: java.util.List[String], query: String, supportForm: play.data.Form[controllers.javaexample.HomeController.SupportRequest], notice: String)(implicit request: play.api.mvc.RequestHeader)
+@import scala.jdk.CollectionConverters._
+@import playwebmcp.javadsl.WebMcp
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Play WebMCP — exemple Java</title>
+    <link rel="stylesheet" href="@controllers.routes.Assets.versioned("stylesheets/main.css")">
+    <script type="module" src="@controllers.routes.Assets.versioned("javascripts/app.js")"></script>
+</head>
+<body><main>
+    <h1>Play WebMCP · Java</h1>
+    <p>Une page utilisable par vous et par un agent compatible WebMCP.</p>
+    <p id="webmcp-status" role="status">Les formulaires fonctionnent même sans WebMCP.</p>
+    <section aria-labelledby="search-heading">
+        <h2 id="search-heading">Rechercher un produit</h2>
+        <form id="search-form" action="@controllers.javaexample.routes.HomeController.index()" method="get" data-search-url="@controllers.javaexample.routes.HomeController.products()">
+            <label for="query">Nom du produit</label>
+            <input id="query" name="query" value="@query" maxlength="100">
+            <button type="submit">Rechercher</button>
+        </form>
+        <ul id="search-results" aria-live="polite">@for(product <- products.asScala) {<li>@product</li>}</ul>
+    </section>
+    <section aria-labelledby="support-heading">
+        <h2 id="support-heading">Demander de l’aide</h2>
+        <p>Cette démonstration valide votre demande sans l’enregistrer.</p>
+        <form id="support-form" action="@controllers.javaexample.routes.HomeController.support()" method="post" @WebMcp.formAttributes("send_support_form", "Remplir une demande de support, puis laisser l’utilisateur confirmer son envoi.")>
+            @helper.CSRF.formField
+            <label for="name">Votre nom</label>
+            <input id="name" name="name" value="@supportForm.field("name").value.orElse("")" required maxlength="80" @WebMcp.paramDescription("Nom de la personne qui demande de l’aide.")>
+            <label for="message">Votre demande</label>
+            <textarea id="message" name="message" required maxlength="1000" @WebMcp.paramDescription("Description du problème à résoudre.")>@supportForm.field("message").value.orElse("")</textarea>
+            <button type="submit">Valider la demande</button>
+        </form>
+        <p id="support-result" role="status">@notice</p>
+        @if(supportForm.hasErrors) {<ul>@for(error <- supportForm.errors().asScala) {<li>@error.message()</li>}</ul>}
+    </section>
+    @WebMcp.tool(searchTool)
+    @WebMcp.tool(supportTool)
+</main></body>
+</html>

@@ -1,0 +1,74 @@
+import { registerTools } from '../lib/play-webmcp/play-webmcp.js';
+
+const searchForm = document.querySelector('#search-form');
+const supportForm = document.querySelector('#support-form');
+const status = document.querySelector('#webmcp-status');
+const supportResult = document.querySelector('#support-result');
+
+async function searchProducts({ query }, context = {}) {
+  const url = new URL(searchForm.dataset.searchUrl, location.href);
+  url.searchParams.set('query', query);
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json' },
+    signal: context.signal
+  });
+  const result = await response.json();
+  searchForm.elements.namedItem('query').value = query;
+  const list = document.querySelector('#search-results');
+  list.replaceChildren();
+  for (const product of result.products || []) {
+    const item = document.createElement('li');
+    item.textContent = product;
+    list.append(item);
+  }
+  if (!response.ok) status.textContent = 'La recherche est invalide.';
+  return result;
+}
+
+async function createSupportRequest({ name, message }, context = {}) {
+  supportForm.elements.namedItem('name').value = name;
+  supportForm.elements.namedItem('message').value = message;
+  if (!window.confirm(`Valider cette demande de support pour ${name} ?\n\n${message}`)) {
+    supportResult.textContent = 'Demande annulée.';
+    return { ok: false, cancelled: true };
+  }
+  // FormData includes the CSRF field rendered by Play; never invent a token.
+  const body = new URLSearchParams(new FormData(supportForm));
+  const response = await fetch(supportForm.action, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json' },
+    body,
+    signal: context.signal
+  });
+  if (!response.headers.get('content-type')?.includes('application/json')) {
+    supportResult.textContent = 'Envoi refusé. Rechargez la page puis réessayez.';
+    return { ok: false, status: response.status, message: supportResult.textContent };
+  }
+  const result = await response.json();
+  supportResult.textContent = result.ok
+    ? result.message
+    : `Corrigez votre demande : ${JSON.stringify(result.errors)}`;
+  return result;
+}
+
+// Human search is enhanced by the same handler; native GET remains a fallback.
+searchForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  try {
+    await searchProducts({ query: searchForm.elements.namedItem('query').value });
+  } catch {
+    status.textContent = 'La recherche a échoué. Réessayez.';
+  }
+});
+
+try {
+  const registration = await registerTools({ searchProducts, createSupportRequest });
+  status.textContent = registration.supported
+    ? 'Les outils WebMCP sont prêts pour un agent compatible.'
+    : 'Ce navigateur ne fournit pas WebMCP. Les formulaires restent disponibles.';
+} catch (error) {
+  status.textContent = 'Les outils WebMCP n’ont pas pu être enregistrés. Les formulaires restent disponibles.';
+  console.error('WebMCP registration failed', error);
+}

@@ -1,0 +1,2 @@
+error.required=Ce champ est obligatoire.
+error.maxLength=Ce champ doit contenir au maximum {0} caractères.
