@@ -4,7 +4,6 @@ import { chromium } from 'playwright';
 
 const baseURL = process.env.BASE_URL || 'http://localhost:9000/';
 const appPath = path => new URL(path.replace(/^\//, ''), baseURL.replace(/\/+$/, '') + '/').pathname;
-const assetPath = appPath('assets/lib/play-webmcp/play-webmcp.js');
 const browserOptions = process.env.CHROMIUM_EXECUTABLE_PATH
   ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH }
   : { channel: 'chromium' };
@@ -42,6 +41,8 @@ test('real browser: ordinary forms, packaged module and server validation withou
     Boolean(document.modelContext?.registerTool || navigator.modelContext?.registerTool)), false);
   assert.match(await page.locator('#webmcp-status').textContent(), /ne fournit pas WebMCP/);
 
+  const assetPath = await page.locator('#page-tools').getAttribute('data-webmcp-runtime');
+  assert.ok(assetPath, 'The view must supply its runtime URL through the existing asset route');
   const asset = await context.request.get(assetPath);
   assert.equal(asset.status(), 200, 'The reusable module asset must be served from its packaged JAR');
   assert.match(asset.headers()['content-type'], /javascript/);
@@ -235,5 +236,81 @@ test('real browser: native WebMCP discovers and executes the application tools',
   assert.equal(supportRequests, 1, 'The confirmed native tool executes its POST exactly once');
   assert.match(created.message, /Demande validée pour Ada/);
   assert.equal(await page.locator('#support-result').textContent(), created.message);
+  assert.deepEqual(errors, []);
+});
+
+test('real browser: replacing a component preserves other native page tools', { timeout: 90000 }, async t => {
+  const browser = await launch(true);
+  t.after(() => browser.close());
+  const context = await browser.newContext({ baseURL });
+  const { page, errors } = await openPage(context);
+  const api = await nativeInterface(page);
+  assert.ok(api, 'This test requires native WebMCP discovery and execution');
+  const originalNames = (await listTools(page, api)).map(tool => tool.name).sort();
+
+  const registered = await page.evaluate(async () => {
+    const runtimeUrl = document.getElementById('page-tools').dataset.webmcpRuntime;
+    const { registerTools } = await import(runtimeUrl);
+    function panel(side, text) {
+      const root = document.createElement('section');
+      const value = document.createElement('p');
+      value.dataset.componentValue = '';
+      value.textContent = text;
+      const metadata = document.createElement('script');
+      metadata.type = 'application/json';
+      metadata.dataset.playWebmcp = '';
+      metadata.textContent = JSON.stringify({
+        name: `component.${side}.read`, description: 'Read the value visible in this component.',
+        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+        handler: 'readValue', annotations: { readOnlyHint: true }
+      });
+      root.append(value, metadata);
+      return root;
+    }
+    const attach = (root, signal) => registerTools({
+      readValue: async () => ({ value: root.querySelector('[data-component-value]').textContent })
+    }, { root, signal });
+    const leftRoot = panel('left', 'Before replacement');
+    const rightRoot = panel('right', 'Unchanged component');
+    document.body.append(leftRoot, rightRoot);
+    const rightController = new AbortController();
+    const left = await attach(leftRoot);
+    const right = await attach(rightRoot, rightController.signal);
+    window.__webmcpComponentTest = { panel, attach, leftRoot, rightRoot, left, right, rightController };
+    return { left: left.registered, right: right.registered };
+  });
+  assert.deepEqual(registered, { left: ['component.left.read'], right: ['component.right.read'] });
+  assert.deepEqual(await executeTool(page, api, 'component.left.read', {}), { value: 'Before replacement' });
+  assert.deepEqual(await executeTool(page, api, 'component.right.read', {}), { value: 'Unchanged component' });
+
+  const cleanup = await page.evaluate(async () => {
+    const state = window.__webmcpComponentTest;
+    const cleanup = await state.left.dispose();
+    const replacement = state.panel('left', 'After replacement');
+    state.leftRoot.replaceWith(replacement);
+    state.leftRoot = replacement;
+    state.left = await state.attach(replacement);
+    return cleanup;
+  });
+  assert.deepEqual(cleanup, { remaining: [], errors: [] });
+  assert.deepEqual(await executeTool(page, api, 'component.left.read', {}), { value: 'After replacement' });
+  assert.deepEqual(await executeTool(page, api, 'component.right.read', {}), { value: 'Unchanged component' });
+  const names = (await listTools(page, api)).map(tool => tool.name);
+  assert.equal(names.filter(name => name === 'component.left.read').length, 1);
+  for (const name of originalNames) assert.ok(names.includes(name), `Preserve existing page tool ${name}`);
+
+  await page.evaluate(() => window.__webmcpComponentTest.rightController.abort());
+  const afterAbort = (await listTools(page, api)).map(tool => tool.name);
+  assert.equal(afterAbort.includes('component.right.read'), false);
+  assert.ok(afterAbort.includes('component.left.read'));
+  await page.evaluate(async () => {
+    const state = window.__webmcpComponentTest;
+    await state.left.dispose();
+    await state.right.dispose();
+    state.leftRoot.remove();
+    state.rightRoot.remove();
+    delete window.__webmcpComponentTest;
+  });
+  assert.deepEqual((await listTools(page, api)).map(tool => tool.name).sort(), originalNames);
   assert.deepEqual(errors, []);
 });
