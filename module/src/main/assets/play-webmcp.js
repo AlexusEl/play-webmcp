@@ -5,10 +5,10 @@ function requireMetadata(condition, message) {
   if (!condition) throw new TypeError(`play-webmcp: ${message}`);
 }
 
-function readTools(document, handlers) {
+function readTools(root, handlers) {
   requireMetadata(isObject(handlers), 'handlers must be an object of named functions');
   const names = new Set();
-  return Array.from(document.querySelectorAll(selector), (element, index) => {
+  return Array.from(root.querySelectorAll(selector), (element, index) => {
     let spec;
     try {
       spec = JSON.parse(element.textContent);
@@ -61,11 +61,13 @@ function readTools(document, handlers) {
  * Register the JSON metadata rendered by the Play helpers with a browser's WebMCP API.
  * This module does not install an agent, call a model, or make network requests.
  * Schema checks are structural; the browser remains responsible for full JSON Schema support.
- * Await dispose() when replacing views. Its result reports cleanup failures on older APIs.
+ * Set root to a container to register only its descendants. Tool names remain unique per document.
+ * Await dispose() before replacing views. Its result reports cleanup failures on older APIs.
  */
 export async function registerTools(handlers, {
   document = globalThis.document,
   navigator = globalThis.navigator,
+  root = document,
   signal
 } = {}) {
   const current = document?.modelContext;
@@ -82,7 +84,10 @@ export async function registerTools(handlers, {
 
   // Validate every definition before registering the first tool.
   requireMetadata(typeof document?.querySelectorAll === 'function', 'a document is required');
-  const definitions = readTools(document, handlers);
+  requireMetadata(typeof root?.querySelectorAll === 'function', 'root must be a document or a DOM container');
+  requireMetadata(root === document || root.ownerDocument === document,
+    'root must belong to the document used for registration');
+  const definitions = readTools(root, handlers);
   requireMetadata(signal === undefined ||
     (typeof signal?.aborted === 'boolean' && typeof signal.addEventListener === 'function' &&
       typeof signal.removeEventListener === 'function'), 'signal must be an AbortSignal');

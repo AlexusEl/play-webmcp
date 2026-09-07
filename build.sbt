@@ -1,5 +1,5 @@
 ThisBuild / organization := "io.github.alexusel"
-ThisBuild / version := "0.2.0"
+ThisBuild / version := "0.3.0"
 ThisBuild / scalaVersion := "2.13.18"
 ThisBuild / crossScalaVersions := Seq("2.13.18", "3.3.6")
 ThisBuild / homepage := Some(url("https://github.com/HackInvent/play-webmcp"))

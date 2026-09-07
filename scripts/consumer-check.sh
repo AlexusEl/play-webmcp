@@ -16,7 +16,7 @@ if [[ -n "$task_scala_version" && ! "$task_scala_version" =~ ^(2\.13|3\.[0-9]+)\
 fi
 export SCALA_VERSION="$task_scala_version"
 export PLAY_VERSION="${PLAY_VERSION:-3.0.11}"
-export WEBMCP_VERSION="${WEBMCP_VERSION:-0.2.0}"
+export WEBMCP_VERSION="${WEBMCP_VERSION:-0.3.0}"
 
 task_repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 task_consumer_dir=$(mktemp -d "${TMPDIR:-/tmp}/play-webmcp-consumer.XXXXXXXX")

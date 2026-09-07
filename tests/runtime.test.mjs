@@ -212,3 +212,61 @@ test('rejects invalid tool names before registering any member of the batch', as
     });
   }
 });
+
+test('components register and replace their own tools without reading or disposing other components', async t => {
+  for (const api of ['current', 'legacy']) {
+    await t.test(api, async () => {
+      const context = nativeContext();
+      if (api === 'legacy') {
+        context.registerTool = function (definition) {
+          if (this.tools.has(definition.name)) throw new Error('Already registered');
+          this.tools.set(definition.name, definition);
+        };
+        context.unregisterTool = function (name) { this.tools.delete(name); };
+      }
+      const document = documentFor([tool({ name: 'outside', handler: 'notOwnedByTheseComponents' })],
+        api === 'current' ? context : undefined);
+      const navigator = api === 'legacy' ? { modelContext: context } : {};
+      const leftMetadata = [tool({ name: 'left.read', handler: 'read' })];
+      const leftRoot = { ...documentFor(leftMetadata), ownerDocument: document };
+      const rightRoot = { ...documentFor([tool({ name: 'right.read', handler: 'read' })]), ownerDocument: document };
+      const left = await registerTools({ read: () => 'left' }, { document, navigator, root: leftRoot });
+      const right = await registerTools({ read: () => 'right' }, { document, navigator, root: rightRoot });
+      assert.deepEqual(left.registered, ['left.read']);
+      assert.deepEqual(right.registered, ['right.read']);
+      assert.equal(await context.tools.get('left.read').execute({}), 'left');
+      assert.equal(await context.tools.get('right.read').execute({}), 'right');
+
+      assert.deepEqual(await left.dispose(), { remaining: [], errors: [] });
+      assert.equal(context.tools.has('left.read'), false);
+      leftMetadata[0] = tool({ name: 'left.read', handler: 'read', description: 'Updated component' });
+      const replacement = await registerTools({ read: () => 'updated' }, { document, navigator, root: leftRoot });
+      await left.dispose(); // Repeated cleanup must not remove the replacement with the same name.
+      assert.equal(await context.tools.get('left.read').execute({}), 'updated');
+      assert.equal(await context.tools.get('right.read').execute({}), 'right');
+      assert.deepEqual(right.registered, ['right.read']);
+      await replacement.dispose();
+      await right.dispose();
+      assert.equal(context.tools.size, 0);
+
+      leftMetadata.length = 0;
+      const empty = await registerTools({}, { document, navigator, root: leftRoot });
+      assert.deepEqual(empty.registered, [], 'An empty component must not fall back to scanning the whole page');
+      await empty.dispose();
+    });
+  }
+});
+
+test('a missing, invalid or foreign root fails before reading metadata or registering tools', async () => {
+  const context = nativeContext();
+  const document = documentFor([tool()], context);
+  const foreignDocument = documentFor([tool()]);
+  const foreignRoot = {
+    ownerDocument: foreignDocument,
+    querySelectorAll() { assert.fail('Must not read a root owned by another document'); }
+  };
+  for (const root of [null, {}, foreignRoot, foreignDocument]) {
+    await assert.rejects(registerTools(handlers, { document, navigator: {}, root }), /root/);
+    assert.equal(context.tools.size, 0);
+  }
+});
