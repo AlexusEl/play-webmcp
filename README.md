@@ -2,61 +2,61 @@
 
 [![CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/v/release/HackInvent/play-webmcp?include_prereleases)](https://github.com/HackInvent/play-webmcp/releases)
-[![MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Play](https://img.shields.io/badge/Play-3.0.10%20%7C%203.0.11-92d13d)
 ![Java](https://img.shields.io/badge/Java-17%20%7C%2021-orange)
 ![Scala](https://img.shields.io/badge/Scala-2.13%20%7C%203-red)
 
-**Ajoutez des outils WebMCP aux vues d'une application Play Java ou Scala existante.** Un agent compatible peut appeler ces outils pendant que l'utilisateur voit les résultats sur la même page.
+**Add WebMCP tools to the views of an existing Play Java or Scala application.** A compatible agent can call these tools while the user sees the results on the same page.
 
-Le module fournit des helpers Twirl et un petit fichier JavaScript sans dépendance navigateur. Vous choisissez les actions exposées et réutilisez le JavaScript, les routes et les autorisations de votre application.
+The module provides Twirl helpers and a small JavaScript file with no browser dependencies. You choose which actions to expose and reuse your application's JavaScript, routes, and permissions.
 
-**Version expérimentale 0.1.0.** WebMCP évolue encore. Le support dépend à la fois du navigateur et de l'agent. [Compatibilité](#navigateurs-et-agents) · [Installation](#installation) · [Premier outil](#un-premier-outil-en-deux-fichiers) · [Exemples](#essayer-les-applications-java-et-scala) · [Tests](#développer-et-tester)
+**Experimental version 0.1.0.** WebMCP is still evolving. Support depends on both the browser and the agent. [Compatibility](#browsers-and-agents) · [Installation](#installation) · [First tool](#your-first-tool-in-two-files) · [Examples](#try-the-java-and-scala-applications) · [Tests](#development-and-testing)
 
-## Comment cela fonctionne
+## How it works
 
 ```mermaid
 flowchart LR
-    P["Play : Java ou Scala"] --> V["Vue Twirl : décrit les outils"]
-    V --> B["WebMCP dans le navigateur"]
-    A["Agent compatible : ChatGPT ou autre"] --> B
-    B --> J["Vos fonctions JavaScript"]
-    J --> U["Résultat visible sur la page"]
-    J --> R["Vos routes Play si nécessaire"]
+    P["Play: Java or Scala"] --> V["Twirl view: describes the tools"]
+    V --> B["WebMCP in the browser"]
+    A["Compatible agent: ChatGPT or another agent"] --> B
+    B --> J["Your JavaScript functions"]
+    J --> U["Results visible on the page"]
+    J --> R["Your Play routes, if needed"]
     R --> J
 ```
 
-Deux modes sont disponibles :
+Two modes are available:
 
-| Mode | Utilisation | Helper |
+| Mode | Use case | Helper |
 | --- | --- | --- |
-| JavaScript, dit **impératif** | Recherche, tableau de bord, formulaire, action de votre application. Chemin recommandé pour ChatGPT. | `WebMcp.tool(...)` puis `registerTools(...)` |
-| HTML, dit **déclaratif** | Ajouter les attributs WebMCP à un formulaire existant. | `WebMcp.formAttributes(...)` |
+| JavaScript, known as **imperative** | Search, dashboards, forms, and application actions. Recommended for ChatGPT. | `WebMcp.tool(...)` then `registerTools(...)` |
+| HTML, known as **declarative** | Add WebMCP attributes to an existing form. | `WebMcp.formAttributes(...)` |
 
-La bibliothèque n'envoie rien à un fournisseur d'IA. L'agent utilise la page avec les permissions et la session de l'utilisateur. Un client MCP distant qui ne visite pas la page nécessite une intégration supplémentaire : ce module ne fournit pas de serveur MCP distant.
+The library does not send anything to an AI provider. The agent uses the page with the user's permissions and session. A remote MCP client that does not visit the page needs additional integration: this module does not provide a remote MCP server.
 
-## Prérequis
+## Prerequisites
 
-Pour intégrer le module :
+To integrate the module:
 
-- Une application **Play 3.0.10 ou 3.0.11**, avec des vues Twirl.
-- **JDK 17 ou 21**. Java 11 n'est pas pris en charge par cette bibliothèque.
-- **Scala 2.13.18 ou Scala 3.3.6 LTS**, versions testées. Un projet Java utilise aussi une version de Scala pour Play et Twirl.
-- **sbt 1.x** ; le dépôt utilise sbt 1.11.7.
-- Une route Play qui sert vos fichiers `public/`, généralement déjà présente.
+- A **Play 3.0.10 or 3.0.11** application with Twirl views.
+- **JDK 17 or 21**. This library does not support Java 11.
+- **Scala 2.13.18 or Scala 3.3.6 LTS**, the tested versions. Java projects also use a Scala version for Play and Twirl.
+- **sbt 1.x**; this repository uses sbt 1.11.7.
+- A Play route that serves your `public/` files, which most applications already have.
 
-Pour utiliser les outils :
+To use the tools:
 
-- **HTTPS**, ou `localhost` pour développer.
-- WebMCP activé dans le navigateur et un agent capable de l'utiliser.
-- La page ouverte, et la connexion habituelle à votre application si elle en demande une.
-- La politique `tools` doit autoriser la page ; sa valeur par défaut est `self`. Ne désactivez pas l'isolation par origine avec `Origin-Agent-Cluster: ?0`. Il n'est pas nécessaire d'ajouter COOP/COEP uniquement pour ce module.
+- **HTTPS**, or `localhost` for development.
+- WebMCP enabled in the browser and an agent that can use it.
+- The page open, with the user signed in to your application if required.
+- The `tools` permissions policy must allow the page; its default is `self`. Do not disable origin isolation with `Origin-Agent-Cluster: ?0`. You do not need to add COOP/COEP just for this module.
 
-Node.js est utile **pour développer et tester ce dépôt**, pas pour intégrer la bibliothèque ni pour exécuter votre application Play. Références : [prérequis Play](https://www.playframework.com/documentation/3.0.x/Requirements), [prérequis WebMCP](https://developer.chrome.com/docs/ai/webmcp).
+Node.js is useful **for developing and testing this repository**, but is not required to integrate the library or run your Play application. References: [Play requirements](https://www.playframework.com/documentation/3.0.x/Requirements), [WebMCP requirements](https://developer.chrome.com/docs/ai/webmcp).
 
 ## Installation
 
-Dans le `build.sbt` de votre application **Java ou Scala** :
+In your **Java or Scala** application's `build.sbt`:
 
 ```scala
 resolvers += "play-webmcp releases" at
@@ -65,38 +65,38 @@ resolvers += "play-webmcp releases" at
 libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.1.0"
 ```
 
-Le double `%%` choisit l'artefact adapté à votre version de Scala, même dans un projet Java. Cette version est distribuée dans le dépôt Maven public de ce projet, **pas sur Maven Central**. Les JAR sont également disponibles dans les [releases GitHub](https://github.com/HackInvent/play-webmcp/releases).
+The double `%%` selects the artifact for your Scala version, including in Java projects. This version is distributed through the project's public Maven repository, **not Maven Central**. The JARs are also available in the [GitHub releases](https://github.com/HackInvent/play-webmcp/releases).
 
-Le dépôt est hébergé par **HackInvent**. L'identifiant Maven `io.github.alexusel` est conservé pour que les projets qui utilisent déjà la bibliothèque restent compatibles.
+The repository is hosted by **HackInvent**. The Maven group ID `io.github.alexusel` is preserved so that projects already using the library remain compatible.
 
-Relancez sbt après l'ajout. Aucun module Guice ni plugin sbt supplémentaire n'est à activer. Gardez les contrôleurs, le routage et la configuration de votre application.
+Restart sbt after adding the dependency. No additional Guice module or sbt plugin needs to be enabled. Keep your application's controllers, routing, and configuration.
 
-Si votre application ne sert pas encore ses fichiers statiques, ajoutez cette route à `conf/routes` :
+If your application does not already serve static files, add this route to `conf/routes`:
 
 ```text
 GET   /assets/*file   controllers.Assets.versioned(path="/public", file: Asset)
 ```
 
-Le JavaScript de la bibliothèque est fourni dans le JAR et extrait par Play sous `lib/play-webmcp/play-webmcp.js`. N'ajoutez pas une seconde route si celle des assets existe déjà.
+The library's JavaScript is bundled in the JAR and extracted by Play to `lib/play-webmcp/play-webmcp.js`. Do not add a second route if your assets route already exists.
 
-## Un premier outil en deux fichiers
+## Your first tool in two files
 
-Cet exemple fonctionne dans les vues des projets **Java et Scala**. Il permet à l'agent de lire le titre de la page.
+This example works in the views of both **Java and Scala** projects. It lets the agent read the page title.
 
-Dans votre vue `.scala.html`, ajoutez les imports après ses paramètres habituels :
+In your `.scala.html` view, add the imports after the usual template parameters:
 
 ```scala
 @import playwebmcp.Tool
 @import playwebmcp.javadsl.WebMcp
 ```
 
-Placez ensuite le helper et le script **dans le contenu HTML de votre layout**, par exemple dans le bloc `@main(...) { ... }` ou avant `</body>`. Ils ne doivent pas précéder le `<!doctype html>` de la page.
+Then place the helper and script **inside your layout's HTML content**, for example inside the `@main(...) { ... }` block or before `</body>`. They must not appear before the page's `<!doctype html>`.
 
 ```scala
 @WebMcp.tool(
     Tool.create(
         "get_page_title",
-        "Lire le titre de la page ouverte.",
+        "Read the title of the open page.",
         """{"type":"object","properties":{},"additionalProperties":false}""",
         "getPageTitle"
     ).withReadOnly(true)
@@ -106,7 +106,7 @@ Placez ensuite le helper et le script **dans le contenu HTML de votre layout**, 
         src="@controllers.routes.Assets.versioned("javascripts/page-tools.js")"></script>
 ```
 
-Créez `public/javascripts/page-tools.js` :
+Create `public/javascripts/page-tools.js`:
 
 ```javascript
 import { registerTools } from '../lib/play-webmcp/play-webmcp.js';
@@ -118,30 +118,30 @@ const tools = await registerTools({
 console.log(tools.supported, tools.api, tools.registered);
 ```
 
-`get_page_title` est le nom vu par l'agent. `getPageTitle` désigne votre fonction JavaScript. Le helper écrit du JSON dans la page ; le runtime associe cette description à la fonction que vous fournissez.
+`get_page_title` is the name the agent sees. `getPageTitle` identifies your JavaScript function. The helper writes JSON into the page; the runtime connects that description to the function you provide.
 
-Sans WebMCP, `supported` vaut `false` et la page continue de fonctionner. Une erreur de configuration, par exemple un nom de fonction inconnu, provoque une erreur explicite. Dans une application réelle, traitez-la avec `try/catch` comme dans les exemples.
+Without WebMCP, `supported` is `false` and the page keeps working. A configuration mistake, such as an unknown handler name, throws an explicit error. In a real application, handle it with `try/catch`, as shown in the examples.
 
-L'import est relatif au dossier `assets/javascripts/`. Adaptez-le si vos assets sont servis ailleurs. Les exemples utilisent aussi les routes inversées de Play pour fonctionner avec un préfixe d'application.
+The import is relative to the `assets/javascripts/` directory. Adjust it if your assets are served elsewhere. The examples also use Play's reverse routes to work with an application URL prefix.
 
-## API Java et Scala
+## Java and Scala APIs
 
-Vous pouvez préparer les métadonnées dans un contrôleur Java et passer l'objet à la vue :
+You can prepare the metadata in a Java controller and pass the object to the view:
 
 ```java
 import playwebmcp.Tool;
 
 Tool search = Tool.create(
     "search_products",
-    "Rechercher des produits par nom.",
+    "Search for products by name.",
     "{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}",
     "searchProducts"
 ).withReadOnly(true);
 ```
 
-La vue reçoit `@(search: playwebmcp.Tool)` et écrit `@playwebmcp.javadsl.WebMcp.tool(search)`. Voir le [contrôleur Java complet](examples/java/app/controllers/javaexample/HomeController.java) et sa [vue](examples/java/app/views/javaIndex.scala.html).
+The view accepts `@(search: playwebmcp.Tool)` and renders `@playwebmcp.javadsl.WebMcp.tool(search)`. See the [complete Java controller](examples/java/app/controllers/javaexample/HomeController.java) and its [view](examples/java/app/views/javaIndex.scala.html).
 
-Une API Scala accepte directement un objet Play JSON :
+The Scala API accepts a Play JSON object directly:
 
 ```scala
 import play.api.libs.json.Json
@@ -149,7 +149,7 @@ import playwebmcp.scaladsl.WebMcp
 
 val metadata = WebMcp.tool(
   name = "search_products",
-  description = "Rechercher des produits par nom.",
+  description = "Search for products by name.",
   inputSchema = Json.obj(
     "type" -> "object",
     "properties" -> Json.obj("query" -> Json.obj("type" -> "string")),
@@ -160,96 +160,96 @@ val metadata = WebMcp.tool(
 )
 ```
 
-`metadata` est un `Html` Twirl, à afficher avec `@metadata`. Vous pouvez aussi appeler le helper directement dans la vue, comme dans l'[exemple Scala](examples/scala/app/views/scalaIndex.scala.html).
+`metadata` is a Twirl `Html` value, rendered with `@metadata`. You can also call the helper directly in the view, as in the [Scala example](examples/scala/app/views/scalaIndex.scala.html).
 
-Le schéma décrit les paramètres attendus ; il ne remplace pas la validation serveur. Les noms d'outils acceptent 1 à 128 lettres ASCII, chiffres, points, tirets ou underscores. Les descriptions sont obligatoires. Les fonctions JavaScript sont fournies explicitement, sans `eval` ni recherche automatique dans les variables globales.
+The schema describes the expected parameters; it does not replace server validation. Tool names must contain 1 to 128 ASCII letters, digits, dots, hyphens, or underscores. Descriptions are required. JavaScript functions are provided explicitly, without `eval` or automatic lookup in global variables.
 
-## Ajouter WebMCP à un formulaire existant
+## Add WebMCP to an existing form
 
 ```scala
 @import playwebmcp.javadsl.WebMcp
 
 <form action="@controllers.routes.SupportController.submit()" method="post"
-      @WebMcp.formAttributes("send_support_form", "Remplir une demande de support.")>
+      @WebMcp.formAttributes("send_support_form", "Fill in a support request.")>
     @helper.CSRF.formField
-    <label for="message">Votre demande</label>
+    <label for="message">Your request</label>
     <textarea id="message" name="message" required
-              @WebMcp.paramDescription("Décrire le problème à résoudre.")></textarea>
-    <button type="submit">Envoyer</button>
+              @WebMcp.paramDescription("Describe the problem to solve.")></textarea>
+    <button type="submit">Send</button>
 </form>
 ```
 
-Adaptez le nom du contrôleur à votre route existante. Par défaut, **l'utilisateur clique sur Envoyer**. Le troisième argument `true` de `formAttributes` ajoute `toolautosubmit` : utilisez-le uniquement pour une action que vous souhaitez réellement laisser soumettre automatiquement.
+Adjust the controller name to match your existing route. By default, **the user clicks Send**. Passing `true` as the third argument to `formAttributes` adds `toolautosubmit`: use it only for an action you intend to allow automatic submission for.
 
-Les attributs sont échappés et les champs restent des champs HTML ordinaires. Une soumission classique peut changer de page. Elle ne fournit pas automatiquement un résultat JSON à l'agent. Pour un retour structuré et le support ChatGPT, utilisez un outil impératif comme dans les applications d'exemple. La [documentation déclarative Chrome](https://developer.chrome.com/docs/ai/webmcp/declarative-api) décrit aussi `respondWith()`.
+Attributes are escaped, and the fields remain ordinary HTML fields. A regular submission may navigate to another page. It does not automatically return a JSON result to the agent. For a structured response and ChatGPT support, use an imperative tool as shown in the example applications. The [Chrome declarative API documentation](https://developer.chrome.com/docs/ai/webmcp/declarative-api) also describes `respondWith()`.
 
-## Réutiliser vos actions et afficher le résultat
+## Reuse your actions and display the result
 
 ```mermaid
 sequenceDiagram
     participant A as Agent
-    participant B as Page ouverte
-    participant P as Contrôleur Play
-    A->>B: Appeler un outil avec ses paramètres
-    B->>B: Montrer les données et demander confirmation si nécessaire
-    B->>P: Requête avec session et jeton CSRF
-    P->>P: Vérifier droits et données
-    P-->>B: Résultat ou erreurs de validation
-    B->>B: Mettre à jour le formulaire ou la liste
-    B-->>A: Retourner le même résultat structuré
+    participant B as Open page
+    participant P as Play controller
+    A->>B: Call a tool with its parameters
+    B->>B: Show data and request confirmation if needed
+    B->>P: Request with session and CSRF token
+    P->>P: Check permissions and validate data
+    P-->>B: Result or validation errors
+    B->>B: Update the form or list
+    B-->>A: Return the same structured result
 ```
 
-Les exemples montrent une recherche et une demande de support. Leurs fonctions JavaScript utilisent `fetch`, conservent la session, transmettent le jeton CSRF déjà présent et affichent les résultats. Le serveur retourne `{ok: true, ...}` ou `{ok: false, errors: ...}`. Le module préserve le résultat renvoyé par votre fonction.
+The examples demonstrate a search and a support request. Their JavaScript functions use `fetch`, preserve the session, pass the existing CSRF token, and display the results. The server returns `{ok: true, ...}` or `{ok: false, errors: ...}`. The module preserves the result returned by your function.
 
-Le contexte d'exécution fourni par le navigateur est transmis comme deuxième argument au handler. Si un signal d'annulation est présent, passez `context.signal` à `fetch`, comme dans les exemples.
+The execution context supplied by the browser is passed as the handler's second argument. If a cancellation signal is available, pass `context.signal` to `fetch`, as in the examples.
 
-Conservez les contrôles d'accès et la validation dans vos actions Play. Une description ou `readOnlyHint` aide l'agent à comprendre une action ; ce n'est pas un contrôle d'autorisation. Les métadonnées sont visibles dans la page : elles ne doivent contenir aucun secret. Les exemples demandent une confirmation avant une demande de support ; ils valident cette demande sans la stocker.
+Keep access checks and validation in your Play actions. A description or `readOnlyHint` helps the agent understand an action; it is not an authorization check. Metadata is visible in the page and must not contain secrets. The examples ask for confirmation before a support request and validate it without storing it.
 
-## Navigateurs et agents
+## Browsers and agents
 
-État documenté au **6 septembre 2026**. « Documenté » signifie annoncé dans la source officielle ; cela ne vaut pas test de votre compte, de votre modèle ou de votre version de navigateur.
+Documented status as of **September 6, 2026**. “Documented” means stated in the official source; it does not mean tested with your account, model, or browser version.
 
-| Environnement | Support et limites | Vérification |
+| Environment | Support and limitations | Verification |
 | --- | --- | --- |
-| **Chrome** | API impérative et déclarative expérimentales. Origin trial depuis Chrome 149 ; flag local disponible. | Tests natifs automatisés sur Chrome for Testing 153.0.8010.12. [Chrome](https://developer.chrome.com/docs/ai/webmcp) |
-| **ChatGPT, navigateur intégré de l'application desktop** | Les outils impératifs de la page principale sont pris en charge selon l'accès au produit et le modèle. Les formulaires déclaratifs et les iframes ne le sont pas actuellement. | Compatibilité de l'API documentée ; aucun test avec un compte ChatGPT n'est revendiqué ici. [OpenAI](https://learn.chatgpt.com/docs/webmcp) |
-| **Edge** | WebMCP est listé dans les origin trials des versions 150–152. La présence du navigateur ne garantit pas que Copilot appelle vos outils. | Documenté, non testé par cette CI. [Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/web-platform/release-notes/152) |
-| **Agent personnalisé ou extension** | Utilisable si l'agent sait découvrir et invoquer les outils WebMCP de la page. Aucun fournisseur de modèle n'est imposé. | À tester avec votre agent. [Spécification](https://webmachinelearning.github.io/webmcp/) |
-| **Firefox, Safari, navigateur sans API** | La page humaine reste utilisable. Aucun support natif WebMCP n'est annoncé par ce projet. | Le scénario sans WebMCP est testé dans Chromium. |
+| **Chrome** | Experimental imperative and declarative APIs. Origin trial since Chrome 149; a local flag is available. | Automated native tests on Chrome for Testing 153.0.8010.12. [Chrome](https://developer.chrome.com/docs/ai/webmcp) |
+| **ChatGPT, built-in browser in the desktop app** | Imperative tools on the top-level page are supported depending on product access and model. Declarative forms and iframes are not currently supported. | API compatibility is documented; this project does not claim testing with a ChatGPT account. [OpenAI](https://learn.chatgpt.com/docs/webmcp) |
+| **Edge** | WebMCP is listed in the origin trials for versions 150–152. Using the browser does not guarantee that Copilot will call your tools. | Documented, not tested by this CI. [Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/web-platform/release-notes/152) |
+| **Custom agent or extension** | Works if the agent can discover and invoke the page's WebMCP tools. No specific model provider is required. | Test with your agent. [Specification](https://webmachinelearning.github.io/webmcp/) |
+| **Firefox, Safari, or a browser without the API** | The page remains usable by people. This project does not claim native WebMCP support. | The scenario without WebMCP is tested in Chromium. |
 
-### Avec ChatGPT
+### With ChatGPT
 
-1. Ouvrez votre application dans le navigateur intégré à ChatGPT desktop.
-2. Connectez-vous à votre application si nécessaire.
-3. Consultez les outils de site disponibles dans la barre du navigateur.
-4. Essayez : « Lis le titre de cette page », ou « Recherche un clavier » dans les exemples.
+1. Open your application in the built-in browser of the ChatGPT desktop app.
+2. Sign in to your application if needed.
+3. Check the available site tools in the browser toolbar.
+4. Try “Read the title of this page” with the first-tool example, or “Search for the product named Clavier” in the demo applications. Their sample product names are in French; “Clavier” means “keyboard”.
 
-Utilisez le mode impératif dans la page principale. Consultez la [page officielle](https://learn.chatgpt.com/docs/webmcp) pour les modèles, comptes et versions actuellement éligibles. Ouvrir le site ChatGPT dans un onglet Chrome n'est pas équivalent à utiliser son navigateur intégré.
+Use imperative tools on the top-level page. See the [official page](https://learn.chatgpt.com/docs/webmcp) for currently eligible models, accounts, and versions. Opening the ChatGPT website in a Chrome tab is not equivalent to using its built-in browser.
 
-### Avec Chrome ou Edge
+### With Chrome or Edge
 
-Pour Chrome en développement, activez `chrome://flags/#enable-webmcp-testing`, puis redémarrez le navigateur. Pour un déploiement public expérimental, suivez les instructions de l'origin trial. L'inspecteur **Model Context Tool Inspector**, lié depuis la [documentation Chrome](https://developer.chrome.com/docs/ai/webmcp), permet de voir et d'appeler les outils. Cet inspecteur est distinct de Gemini dans Chrome.
+For local Chrome development, enable `chrome://flags/#enable-webmcp-testing`, then restart the browser. For an experimental public deployment, follow the origin trial instructions. **Model Context Tool Inspector**, linked from the [Chrome documentation](https://developer.chrome.com/docs/ai/webmcp), lets you inspect and call the tools. This inspector is separate from Gemini in Chrome.
 
-Pour Edge, vérifiez la version et les conditions du [trial Microsoft](https://developer.microsoft.com/en-us/microsoft-edge/origin-trials/trials/0b76fe60-b266-458e-a285-04e375c0c31a).
+For Edge, check the version and requirements of the [Microsoft trial](https://developer.microsoft.com/en-us/microsoft-edge/origin-trials/trials/0b76fe60-b266-458e-a285-04e375c0c31a).
 
-### Avec votre propre agent
+### With your own agent
 
-Le runtime enregistre des outils WebMCP standards. Votre agent utilise les interfaces de découverte et d'exécution fournies par le navigateur ou son extension. Le module ne contient ni modèle ni boucle de conversation.
+The runtime registers standard WebMCP tools. Your agent uses the discovery and execution interfaces provided by the browser or its extension. The module contains neither a model nor a conversation loop.
 
-Attention à la version de l'API si vous écrivez ce client : Chromium 153 attend des arguments JSON sérialisés pour `executeTool`, tandis que le draft du 4 septembre décrit un objet. Choisissez le format avant l'appel ; ne relancez pas automatiquement une opération d'écriture pour essayer un autre format. Le [test natif](tests/browser.mjs) illustre cette distinction. Sources : [IDL Chromium testé](https://chromium.googlesource.com/chromium/src/+/153.0.8010.12/third_party/blink/renderer/core/script_tools/model_context.idl), [draft](https://webmachinelearning.github.io/webmcp/).
+Check the API version when writing this client: Chromium 153 expects serialized JSON arguments for `executeTool`, while the September 4 draft describes an object. Choose the format before calling the tool; do not automatically retry a write operation to try another format. The [native test](tests/browser.mjs) illustrates this distinction. Sources: [tested Chromium IDL](https://chromium.googlesource.com/chromium/src/+/153.0.8010.12/third_party/blink/renderer/core/script_tools/model_context.idl), [draft](https://webmachinelearning.github.io/webmcp/).
 
-## Cycle de vie, CSP et limites
+## Lifecycle, CSP, and limitations
 
-- `registerTools` préfère `document.modelContext`. Il utilise `navigator.modelContext` si seule cette ancienne API est disponible et indique le choix dans `api`.
-- Appelez-le une fois par vue. Après un remplacement dynamique de vue, faites `await tools.dispose()` avant de réenregistrer les outils. Vérifiez `remaining` et `errors` sur les anciennes API.
-- L'option `signal` permet d'annuler l'enregistrement. L'API actuelle retire les outils avec `AbortController` ; les anciennes implémentations utilisent `unregisterTool` lorsqu'il existe.
-- Sans API, `supported` vaut `false`. Une erreur d'enregistrement déclenche un nettoyage des outils déjà ajoutés et expose les éventuels échecs de nettoyage.
-- Le helper produit du JSON inerte et le code s'exécute dans un fichier externe. Autorisez ce fichier dans votre CSP habituelle ; aucune règle `unsafe-inline` ou `unsafe-eval` n'est nécessaire au module. Si votre CSP impose un nonce sur les scripts externes, conservez le helper de nonce déjà utilisé dans votre application.
-- Ne donnez pas le même nom à un outil déclaratif et à un outil impératif de la page. Le runtime ne contrôle pas les outils enregistrés par une autre bibliothèque.
-- Les routes ne deviennent pas automatiquement des outils. Chaque action exposée et chaque handler restent explicites.
-- Play 2.x, Play 3.1 en préversion, les autres versions Scala et les autres couples navigateur/agent ne font pas partie de la matrice de tests actuelle.
+- `registerTools` prefers `document.modelContext`. It uses `navigator.modelContext` if only that older API is available and reports the choice in `api`.
+- Call it once per view. After a dynamic view replacement, call `await tools.dispose()` before registering the tools again. Check `remaining` and `errors` when using older APIs.
+- The `signal` option lets you cancel registration. The current API removes tools through `AbortController`; older implementations use `unregisterTool` when available.
+- Without the API, `supported` is `false`. A registration error triggers cleanup of tools already added and exposes any cleanup failures.
+- The helper produces inert JSON, and the code runs in an external file. Allow that file in your usual CSP; the module does not require `unsafe-inline` or `unsafe-eval`. If your CSP requires a nonce on external scripts, keep using your application's existing nonce helper.
+- Do not give a declarative tool and an imperative tool on the page the same name. The runtime does not manage tools registered by another library.
+- Routes do not automatically become tools. Each exposed action and handler must be provided explicitly.
+- Play 2.x, Play 3.1 previews, other Scala versions, and other browser/agent combinations are outside the current test matrix.
 
-## Essayer les applications Java et Scala
+## Try the Java and Scala applications
 
 ```bash
 git clone https://github.com/HackInvent/play-webmcp.git
@@ -257,17 +257,17 @@ cd play-webmcp
 sbt "javaExample/run 19001"
 ```
 
-Ouvrez `http://localhost:19001`. Pour Scala, dans un autre terminal :
+Open `http://localhost:19001`. For Scala, use another terminal:
 
 ```bash
 sbt "scalaExample/run 19002"
 ```
 
-Ouvrez `http://localhost:19002`. Chaque page contient une recherche, un formulaire de support et un état WebMCP visible. Les exemples utilisent une liste de produits fixe et ne stockent pas les demandes. Leurs clés de session sont des clés de démonstration locales ; utilisez votre propre configuration pour déployer une application.
+Open `http://localhost:19002`. Each page contains a search, a support form, and a visible WebMCP status. The demo interfaces and sample product names are currently in French. The examples use a fixed product list and do not store requests. Their session keys are local demo keys; use your own configuration when deploying an application.
 
-## Développer et tester
+## Development and testing
 
-Prérequis supplémentaires : **Node.js 22** pour les tests navigateur, npm et les dépendances système de Chromium. Avec JDK 17 ou 21 sélectionné :
+Additional prerequisites: **Node.js 22** for browser tests, npm, and Chromium's system dependencies. With JDK 17 or 21 selected:
 
 ```bash
 sbt +test
@@ -278,51 +278,51 @@ sbt javaExample/stage scalaExample/stage
 bash scripts/browser-check.sh
 ```
 
-Le dernier script démarre et arrête ses propres applications sur les ports 19001 et 19002. Ces ports doivent être libres. Pour une application déjà démarrée :
+The last script starts and stops its own applications on ports 19001 and 19002. These ports must be free. To test an application that is already running:
 
 ```bash
 BASE_URL=http://localhost:19001 npm run test:browser
 ```
 
-Les vérifications couvrent :
+The checks cover:
 
-- Les APIs Java et Scala, les schémas, les noms et l'échappement HTML/JSON.
-- Les véritables routes et vues Play des deux applications, la validation et CSRF.
-- Le runtime avec API absente, API actuelle, ancienne API, annulation et erreurs de nettoyage. Ces tests unitaires utilisent des doublures de l'API.
-- Le navigateur réel : formulaires avec et sans JavaScript, asset issu du JAR, découverte et appels WebMCP natifs, confirmation et annulation d'une écriture. Ces tests n'installent pas de faux WebMCP et échouent si l'API native manque.
+- Java and Scala APIs, schemas, names, and HTML/JSON escaping.
+- The real Play routes and views in both applications, validation, and CSRF protection.
+- The runtime with no API, the current API, the older API, cancellation, and cleanup errors. These unit tests use API test doubles.
+- A real browser: forms with and without JavaScript, the asset from the JAR, native WebMCP discovery and calls, and confirmation and cancellation of a write operation. These tests do not install a fake WebMCP API and fail if the native API is missing.
 
-La [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) croise Play 3.0.10/3.0.11, Scala 2.13.18/3.3.6 et Java 17/21. Le navigateur est fixé par `package-lock.json` pour rendre les tests reproductibles.
+The [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) tests combinations of Play 3.0.10/3.0.11, Scala 2.13.18/3.3.6, and Java 17/21. The browser version is pinned by `package-lock.json` to make tests reproducible.
 
-Pour vérifier l'installation des JAR publics dans des projets indépendants :
+To verify installation of the public JARs in independent projects:
 
 ```bash
 bash scripts/consumer-check.sh
 ```
 
-Ce script crée deux applications temporaires, télécharge le module depuis le dépôt Maven public et teste leurs routes et leurs vues avec les deux versions Scala. Il vérifie aussi que Play sert le JavaScript inclus dans le JAR.
+This script creates two temporary applications, downloads the module from the public Maven repository, and tests their routes and views with both Scala versions. It also checks that Play serves the JavaScript included in the JAR.
 
-Pour essayer une modification locale dans votre propre projet :
+To try a local change in your own project:
 
 ```bash
 sbt +webmcp/publishLocal
 ```
 
-Gardez ensuite la même ligne `libraryDependencies` dans le projet consommateur. Les artefacts publiés localement seront disponibles sur votre machine.
+Keep the same `libraryDependencies` line in the consuming project. The locally published artifacts will be available on your machine.
 
-## Dépannage
+## Troubleshooting
 
-| Symptôme | À vérifier |
+| Symptom | What to check |
 | --- | --- |
-| `supported: false` | Activation de WebMCP, contexte HTTPS/localhost, politique `tools` et version du navigateur. |
-| Aucun outil dans ChatGPT | Navigateur intégré, accès aux outils de site, mode impératif et page principale. |
-| JavaScript en 404 | Route assets existante et chemin `lib/play-webmcp/play-webmcp.js`, sans numéro de version. |
-| `unknown handler` | Le champ `handler` doit correspondre à une fonction passée à `registerTools`. |
-| POST refusé avec 403 | Session, jeton CSRF du formulaire et autorisation serveur. Corrigez leur transmission. |
-| Erreur de compilation Scala | Le suffixe de l'artefact et la version Scala de votre projet doivent correspondre ; utilisez `%%` avec sbt. |
-| Outil encore présent après remplacement de vue | Appelez `dispose()` et examinez les erreurs de nettoyage avant un nouvel enregistrement. |
+| `supported: false` | WebMCP enabled, HTTPS/localhost context, `tools` policy, and browser version. |
+| No tools in ChatGPT | Built-in browser, access to site tools, imperative mode, and top-level page. |
+| JavaScript returns 404 | Existing assets route and the path `lib/play-webmcp/play-webmcp.js`, without a version number. |
+| `unknown handler` | The `handler` field must match a function passed to `registerTools`. |
+| POST rejected with 403 | Session, form CSRF token, and server authorization. Make sure the request sends the required session and token. |
+| Scala compilation error | The artifact suffix must match your project's Scala version; use `%%` with sbt. |
+| Tool still present after a view replacement | Call `dispose()` and inspect cleanup errors before registering again. |
 
-## Contribuer et licence
+## Contributing and license
 
-Les changements sont livrés par petits commits : bibliothèque, runtime, exemples, tests puis documentation et distribution. Proposez une correction avec un exemple reproductible dans les [issues](https://github.com/HackInvent/play-webmcp/issues) ou une pull request. Gardez la documentation dans ce README et vérifiez les scénarios touchés par votre modification.
+Changes are delivered through small commits: library, runtime, examples, tests, then documentation and distribution. Suggest a fix with a reproducible example in the [issues](https://github.com/HackInvent/play-webmcp/issues) or submit a pull request. Keep the documentation in this README and check the scenarios affected by your change.
 
-Licence [MIT](LICENSE). Projet communautaire indépendant de Play Framework, OpenAI, Google et Microsoft.
+[MIT](LICENSE) license. A community project independent of Play Framework, OpenAI, Google, and Microsoft.
