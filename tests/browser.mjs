@@ -55,6 +55,48 @@ test('real browser: ordinary forms, packaged module and server validation withou
   await page.waitForFunction(() => document.querySelector('#search-results')?.textContent.trim() === 'Souris');
   assert.deepEqual(await page.locator('#search-results li').allTextContents(), ['Souris']);
 
+  // A late success or failure must preserve a newer request and any unsubmitted input.
+  const initialStatus = await page.locator('#webmcp-status').textContent();
+  for (const { reply, submitNewer } of [
+    { reply: { json: { ok: true, products: ['Clavier'] } }, submitNewer: true },
+    { reply: { status: 500, contentType: 'text/html', body: 'Server error' }, submitNewer: true },
+    { reply: { json: { ok: true, products: ['Clavier'] } }, submitNewer: false }
+  ]) {
+    let releaseOldSearch;
+    const oldSearchGate = new Promise(resolve => { releaseOldSearch = resolve; });
+    let sawOldSearch;
+    const oldSearchStarted = new Promise(resolve => { sawOldSearch = resolve; });
+    const slowSearch = '**/api/products?query=clav';
+    await page.route(slowSearch, async route => {
+      sawOldSearch();
+      await oldSearchGate;
+      await route.fulfill(reply);
+    });
+    try {
+      await page.locator('#query').fill('clav');
+      await page.locator('#search-form button').click();
+      await oldSearchStarted;
+      await page.locator('#query').fill('souris');
+      if (submitNewer) {
+        await Promise.all([
+          page.waitForResponse(response => new URL(response.url()).searchParams.get('query') === 'souris'),
+          page.locator('#search-form button').click()
+        ]);
+      }
+      const oldResponse = page.waitForResponse(response => new URL(response.url()).searchParams.get('query') === 'clav');
+      releaseOldSearch();
+      await (await oldResponse).finished();
+      // Allow the response handler to render; the old result must not replace the latest one.
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      assert.equal(await page.locator('#query').inputValue(), 'souris', 'A stale search must not replace the latest query');
+      assert.deepEqual(await page.locator('#search-results li').allTextContents(), submitNewer ? ['Souris'] : ['Clavier']);
+      assert.equal(await page.locator('#webmcp-status').textContent(), initialStatus, 'An old failure must not replace the current status');
+    } finally {
+      releaseOldSearch();
+      await page.unroute(slowSearch);
+    }
+  }
+
   const token = await page.locator('#support-form input[type="hidden"]').evaluate(element => ({
     name: element.name, value: element.value
   }));

@@ -5,25 +5,40 @@ const supportForm = document.querySelector('#support-form');
 const status = document.querySelector('#webmcp-status');
 const supportResult = document.querySelector('#support-result');
 
+let latestSearch = 0;
+
 async function searchProducts({ query }, context = {}) {
-  const url = new URL(searchForm.dataset.searchUrl, location.href);
-  url.searchParams.set('query', query);
-  const response = await fetch(url, {
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json' },
-    signal: context.signal
-  });
-  const result = await response.json();
+  context.signal?.throwIfAborted();
+  const requestId = ++latestSearch;
+  // Set agent-provided input before the request, so a response cannot overwrite a user's draft.
   searchForm.elements.namedItem('query').value = query;
-  const list = document.querySelector('#search-results');
-  list.replaceChildren();
-  for (const product of result.products || []) {
-    const item = document.createElement('li');
-    item.textContent = product;
-    list.append(item);
+  try {
+    const url = new URL(searchForm.dataset.searchUrl, location.href);
+    url.searchParams.set('query', query);
+    const response = await fetch(url, {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+      signal: context.signal
+    });
+    const result = await response.json();
+    context.signal?.throwIfAborted();
+    // Each caller receives its own result; only the latest search updates the shared page.
+    if (requestId !== latestSearch) return result;
+    const list = document.querySelector('#search-results');
+    list.replaceChildren();
+    for (const product of result.products || []) {
+      const item = document.createElement('li');
+      item.textContent = product;
+      list.append(item);
+    }
+    if (!response.ok) status.textContent = 'La recherche est invalide.';
+    return result;
+  } catch (error) {
+    if (requestId === latestSearch && !context.signal?.aborted) {
+      status.textContent = 'La recherche a échoué. Réessayez.';
+    }
+    throw error;
   }
-  if (!response.ok) status.textContent = 'La recherche est invalide.';
-  return result;
 }
 
 async function createSupportRequest({ name, message }, context = {}) {
@@ -59,7 +74,7 @@ searchForm.addEventListener('submit', async event => {
   try {
     await searchProducts({ query: searchForm.elements.namedItem('query').value });
   } catch {
-    status.textContent = 'La recherche a échoué. Réessayez.';
+    // The handler already displayed any error belonging to the current search.
   }
 });
 
