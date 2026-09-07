@@ -1,7 +1,7 @@
 # play-webmcp
 
-[![CI](https://github.com/AlexusEl/play-webmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexusEl/play-webmcp/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/github/v/release/AlexusEl/play-webmcp?include_prereleases)](https://github.com/AlexusEl/play-webmcp/releases)
+[![CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/github/v/release/HackInvent/play-webmcp?include_prereleases)](https://github.com/HackInvent/play-webmcp/releases)
 [![MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 ![Play](https://img.shields.io/badge/Play-3.0.10%20%7C%203.0.11-92d13d)
 ![Java](https://img.shields.io/badge/Java-17%20%7C%2021-orange)
@@ -60,12 +60,14 @@ Dans le `build.sbt` de votre application **Java ou Scala** :
 
 ```scala
 resolvers += "play-webmcp releases" at
-  "https://raw.githubusercontent.com/AlexusEl/play-webmcp/maven"
+  "https://raw.githubusercontent.com/HackInvent/play-webmcp/maven"
 
 libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.1.0"
 ```
 
-Le double `%%` choisit l'artefact adapté à votre version de Scala, même dans un projet Java. Cette version est distribuée dans le dépôt Maven public de ce projet, **pas sur Maven Central**. Les JAR sont également disponibles dans les [releases GitHub](https://github.com/AlexusEl/play-webmcp/releases).
+Le double `%%` choisit l'artefact adapté à votre version de Scala, même dans un projet Java. Cette version est distribuée dans le dépôt Maven public de ce projet, **pas sur Maven Central**. Les JAR sont également disponibles dans les [releases GitHub](https://github.com/HackInvent/play-webmcp/releases).
+
+Le dépôt est hébergé par **HackInvent**. L'identifiant Maven `io.github.alexusel` est conservé pour que les projets qui utilisent déjà la bibliothèque restent compatibles.
 
 Relancez sbt après l'ajout. Aucun module Guice ni plugin sbt supplémentaire n'est à activer. Gardez les contrôleurs, le routage et la configuration de votre application.
 
@@ -250,7 +252,7 @@ Attention à la version de l'API si vous écrivez ce client : Chromium 153 atten
 ## Essayer les applications Java et Scala
 
 ```bash
-git clone https://github.com/AlexusEl/play-webmcp.git
+git clone https://github.com/HackInvent/play-webmcp.git
 cd play-webmcp
 sbt "javaExample/run 19001"
 ```
@@ -289,7 +291,7 @@ Les vérifications couvrent :
 - Le runtime avec API absente, API actuelle, ancienne API, annulation et erreurs de nettoyage. Ces tests unitaires utilisent des doublures de l'API.
 - Le navigateur réel : formulaires avec et sans JavaScript, asset issu du JAR, découverte et appels WebMCP natifs, confirmation et annulation d'une écriture. Ces tests n'installent pas de faux WebMCP et échouent si l'API native manque.
 
-La [CI](https://github.com/AlexusEl/play-webmcp/actions/workflows/ci.yml) croise Play 3.0.10/3.0.11, Scala 2.13.18/3.3.6 et Java 17/21. Le navigateur est fixé par `package-lock.json` pour rendre les tests reproductibles.
+La [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) croise Play 3.0.10/3.0.11, Scala 2.13.18/3.3.6 et Java 17/21. Le navigateur est fixé par `package-lock.json` pour rendre les tests reproductibles.
 
 Pour vérifier l'installation des JAR publics dans des projets indépendants :
 
@@ -321,6 +323,6 @@ Gardez ensuite la même ligne `libraryDependencies` dans le projet consommateur.
 
 ## Contribuer et licence
 
-Les changements sont livrés par petits commits : bibliothèque, runtime, exemples, tests puis documentation et distribution. Proposez une correction avec un exemple reproductible dans les [issues](https://github.com/AlexusEl/play-webmcp/issues) ou une pull request. Gardez la documentation dans ce README et vérifiez les scénarios touchés par votre modification.
+Les changements sont livrés par petits commits : bibliothèque, runtime, exemples, tests puis documentation et distribution. Proposez une correction avec un exemple reproductible dans les [issues](https://github.com/HackInvent/play-webmcp/issues) ou une pull request. Gardez la documentation dans ce README et vérifiez les scénarios touchés par votre modification.
 
 Licence [MIT](LICENSE). Projet communautaire indépendant de Play Framework, OpenAI, Google et Microsoft.

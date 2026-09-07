@@ -21,7 +21,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-export WEBMCP_REPOSITORY="${WEBMCP_REPOSITORY:-https://raw.githubusercontent.com/AlexusEl/play-webmcp/maven}"
+export WEBMCP_REPOSITORY="${WEBMCP_REPOSITORY:-https://raw.githubusercontent.com/HackInvent/play-webmcp/maven}"
 
 for task_language in java scala; do
   mkdir -p "$task_consumer_dir/examples/$task_language"
