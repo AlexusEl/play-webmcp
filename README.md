@@ -3,15 +3,15 @@
 [![CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/v/release/HackInvent/play-webmcp?include_prereleases)](https://github.com/HackInvent/play-webmcp/releases)
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Play](https://img.shields.io/badge/Play-3.0.10%20%7C%203.0.11-92d13d)
-![Java](https://img.shields.io/badge/Java-17%20%7C%2021-orange)
+![Play](https://img.shields.io/badge/Play-3.0.0%E2%80%933.0.11-92d13d)
+![Java](https://img.shields.io/badge/Java-11%20%7C%2017%20%7C%2021-orange)
 ![Scala](https://img.shields.io/badge/Scala-2.13%20%7C%203-red)
 
 **Add WebMCP tools to the views of an existing Play Java or Scala application.** A compatible agent can call these tools while the user sees the results on the same page.
 
 The module provides Twirl helpers and a small JavaScript file with no browser dependencies. You choose which actions to expose and reuse your application's JavaScript, routes, and permissions.
 
-**Experimental version 0.1.0.** WebMCP is still evolving. Support depends on both the browser and the agent. [Compatibility](#browsers-and-agents) · [Installation](#installation) · [First tool](#your-first-tool-in-two-files) · [Examples](#try-the-java-and-scala-applications) · [Tests](#development-and-testing)
+**Experimental version 0.2.0.** WebMCP is still evolving. Support depends on both the browser and the agent. [Compatibility](#browsers-and-agents) · [Add to your site](#installation) · [First tool](#your-first-tool-in-two-files) · [Examples](#try-the-java-and-scala-applications) · [Tests](#development-and-testing)
 
 ## How it works
 
@@ -39,10 +39,10 @@ The library does not send anything to an AI provider. The agent uses the page wi
 
 To integrate the module:
 
-- A **Play 3.0.10 or 3.0.11** application with Twirl views.
-- **JDK 17 or 21**. This library does not support Java 11.
-- **Scala 2.13.18 or Scala 3.3.6 LTS**, the tested versions. Java projects also use a Scala version for Play and Twirl.
-- **sbt 1.x**; this repository uses sbt 1.11.7.
+- An existing **Play 3.0.x** application with Twirl HTML views. The installation tests cover every stable release from **3.0.0 through 3.0.11**.
+- **JDK 11, 17, or 21**, as supported by your application. The module targets Java 11 bytecode.
+- **Scala 2.13 or Scala 3**, supported by your Play version. The JARs are built with Scala **2.13.12** and **3.3.1**; these minimum versions and **2.13.18 / 3.3.6** are tested. Java projects also use Scala for Play and Twirl. Keep your existing compatible Scala version.
+- Your application's existing **sbt 1.x** setup; this repository uses sbt 1.11.7.
 - A Play route that serves your `public/` files, which most applications already have.
 
 To use the tools:
@@ -56,20 +56,43 @@ Node.js is useful **for developing and testing this repository**, but is not req
 
 ## Installation
 
+**Add the dependency to your existing site; you do not need to clone this repository.** Start with one page and one action. The steps are the same for Java and Scala projects.
+
+| File in your application | Change |
+| --- | --- |
+| `build.sbt` | Add the Maven resolver and library dependency. |
+| `conf/routes` | Reuse your assets route, or add one if it is missing. |
+| Your existing `.scala.html` view or layout | Describe the tool and load its JavaScript. |
+| `public/javascripts/page-tools.js` | Connect the tool to your JavaScript function. |
+
+### 1. Add the dependency
+
 In your **Java or Scala** application's `build.sbt`:
 
 ```scala
 resolvers += "play-webmcp releases" at
   "https://raw.githubusercontent.com/HackInvent/play-webmcp/maven"
 
-libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.1.0"
+libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.2.0"
 ```
 
 The double `%%` selects the artifact for your Scala version, including in Java projects. This version is distributed through the project's public Maven repository, **not Maven Central**. The JARs are also available in the [GitHub releases](https://github.com/HackInvent/play-webmcp/releases).
 
 The repository is hosted by **HackInvent**. The Maven group ID `io.github.alexusel` is preserved so that projects already using the library remain compatible.
 
-Restart sbt after adding the dependency. No additional Guice module or sbt plugin needs to be enabled. Keep your application's controllers, routing, and configuration.
+Restart sbt after adding the dependency. The library declares Play as a provided dependency: your application supplies its own Play version. Keep your existing `PlayJava` or `PlayScala` plugin, controllers, dependency injection, session settings, and server backend. No WebMCP plugin, Guice module, API key, or additional server is needed.
+
+For a build with several subprojects, put **both settings on the Play subproject that renders the views**, not just on the root that aggregates them. For example, add these entries to its existing `.settings(...)`:
+
+```scala
+resolvers += "play-webmcp releases" at
+  "https://raw.githubusercontent.com/HackInvent/play-webmcp/maven",
+libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.2.0"
+```
+
+Upgrading from 0.1.0: change the dependency version to `0.2.0` and rebuild. Existing helper calls and the public runtime path stay the same.
+
+### 2. Reuse your assets route
 
 If your application does not already serve static files, add this route to `conf/routes`:
 
@@ -77,11 +100,23 @@ If your application does not already serve static files, add this route to `conf
 GET   /assets/*file   controllers.Assets.versioned(path="/public", file: Asset)
 ```
 
-The library's JavaScript is bundled in the JAR and extracted by Play to `lib/play-webmcp/play-webmcp.js`. Do not add a second route if your assets route already exists.
+The library's JavaScript is bundled in the JAR and extracted by Play to `lib/play-webmcp/play-webmcp.js`. Do not add a second route if your assets route already exists. Do not include `0.2.0` in this public path.
+
+The example below uses `Assets.versioned`. If your application uses `Assets.at` or an injected `AssetsFinder`, use that same helper for **both JavaScript URLs**:
+
+| Existing asset setup | Example runtime URL expression in Twirl |
+| --- | --- |
+| `Assets.versioned` with the route above | `@controllers.routes.Assets.versioned("lib/play-webmcp/play-webmcp.js")` |
+| `Assets.at` with a fixed `/public` route | `@controllers.routes.Assets.at("lib/play-webmcp/play-webmcp.js")` |
+| An `AssetsFinder` passed as `assetsFinder` | `@assetsFinder.path("lib/play-webmcp/play-webmcp.js")` |
+
+This also works with a custom assets route such as `/static/*file`. Keep your existing asset pipeline and CSP. The template passes the runtime URL to JavaScript, so the handler file does not have to assume where assets are hosted. See [Play's asset documentation](https://www.playframework.com/documentation/3.0.x/AssetsOverview) for route overloads and asset configuration.
 
 ## Your first tool in two files
 
 This example works in the views of both **Java and Scala** projects. It lets the agent read the page title.
+
+### 3. Describe a tool in your existing view
 
 In your `.scala.html` view, add the imports after the usual template parameters:
 
@@ -102,14 +137,20 @@ Then place the helper and script **inside your layout's HTML content**, for exam
     ).withReadOnly(true)
 )
 
-<script type="module"
+<script id="page-tools" type="module"
+        data-webmcp-runtime="@controllers.routes.Assets.versioned("lib/play-webmcp/play-webmcp.js")"
         src="@controllers.routes.Assets.versioned("javascripts/page-tools.js")"></script>
 ```
+
+Load this script once per page. If your shared layout already loads it, add only the tool metadata to the individual view. This first example does not require a new controller or route.
+
+### 4. Connect the JavaScript handler
 
 Create `public/javascripts/page-tools.js`:
 
 ```javascript
-import { registerTools } from '../lib/play-webmcp/play-webmcp.js';
+const runtimeUrl = document.getElementById('page-tools').dataset.webmcpRuntime;
+const { registerTools } = await import(runtimeUrl);
 
 const tools = await registerTools({
   getPageTitle: async () => ({ title: document.title })
@@ -122,7 +163,16 @@ console.log(tools.supported, tools.api, tools.registered);
 
 Without WebMCP, `supported` is `false` and the page keeps working. A configuration mistake, such as an unknown handler name, throws an explicit error. In a real application, handle it with `try/catch`, as shown in the examples.
 
-The import is relative to the `assets/javascripts/` directory. Adjust it if your assets are served elsewhere. The examples also use Play's reverse routes to work with an application URL prefix.
+### 5. Check the integration
+
+1. Start your application and open the page. Its usual buttons and forms should still work.
+2. In the browser's Network tab, check that `page-tools.js` and `play-webmcp.js` return HTTP 200 with a JavaScript content type.
+3. In a browser with WebMCP enabled, check the console: `supported` should be `true` and `registered` should include `get_page_title`.
+4. Use a compatible agent or the browser's tool inspector to call `get_page_title`. It should return the visible page title. Without WebMCP, `supported: false` is expected.
+
+For a site served under a prefix such as `/shop`, keep its existing `play.http.context` and proxy configuration. Generate the script and action URLs with Play's route helpers, as shown here. Do not hard-code `/assets` or `/api` in your handlers. The browser tests run the Java and Scala examples both at `/` and under `/shop`.
+
+Next, replace the title handler with a function that calls an existing action and updates your page. The [form example](#add-webmcp-to-an-existing-form) and [request flow](#reuse-your-actions-and-display-the-result) show how to reuse validation, permissions, session cookies, and CSRF protection.
 
 ## Java and Scala APIs
 
@@ -247,7 +297,7 @@ Check the API version when writing this client: Chromium 153 expects serialized 
 - The helper produces inert JSON, and the code runs in an external file. Allow that file in your usual CSP; the module does not require `unsafe-inline` or `unsafe-eval`. If your CSP requires a nonce on external scripts, keep using your application's existing nonce helper.
 - Do not give a declarative tool and an imperative tool on the page the same name. The runtime does not manage tools registered by another library.
 - Routes do not automatically become tools. Each exposed action and handler must be provided explicitly.
-- Play 2.x, Play 3.1 previews, other Scala versions, and other browser/agent combinations are outside the current test matrix.
+- Play 2.x and Play 3.1 previews are outside the current test matrix. Future Play 3.x releases and other Scala or browser/agent combinations need verification before they can be claimed as supported.
 
 ## Try the Java and Scala applications
 
@@ -267,7 +317,7 @@ Open `http://localhost:19002`. Each page contains a search, a support form, and 
 
 ## Development and testing
 
-Additional prerequisites: **Node.js 22** for browser tests, npm, and Chromium's system dependencies. With JDK 17 or 21 selected:
+Additional prerequisites: **Node.js 22** for browser tests, npm, and Chromium's system dependencies. With JDK 11, 17, or 21 selected:
 
 ```bash
 sbt +test
@@ -291,7 +341,16 @@ The checks cover:
 - The runtime with no API, the current API, the older API, cancellation, and cleanup errors. These unit tests use API test doubles.
 - A real browser: forms with and without JavaScript, the asset from the JAR, native WebMCP discovery and calls, and confirmation and cancellation of a write operation. These tests do not install a fake WebMCP API and fail if the native API is missing.
 
-The [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) tests combinations of Play 3.0.10/3.0.11, Scala 2.13.18/3.3.6, and Java 17/21. The browser version is pinned by `package-lock.json` to make tests reproducible.
+The [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) builds the distributable JARs once against Play 3.0.0, Scala 2.13.12/3.3.1, and Java 11. Independent Java and Scala applications then install those same JARs:
+
+| Installation check | Versions |
+| --- | --- |
+| Every stable Play 3.0 release | 3.0.0–3.0.11, with Scala 2.13.18 and 3.3.6 on Java 11 |
+| Minimum Scala versions | Play 3.0.0 with Scala 2.13.12 and 3.3.1 on Java 11 |
+| Additional JDKs | Play 3.0.11 with both Scala families on Java 17 and 21 |
+| Browser integration | Java and Scala examples at `/` and `/shop`, with and without native WebMCP |
+
+The installation tests also compare the application's Play and Scala dependencies before and after adding the module. The browser version is pinned by `package-lock.json` to make tests reproducible.
 
 To verify installation of the public JARs in independent projects:
 
@@ -299,7 +358,15 @@ To verify installation of the public JARs in independent projects:
 bash scripts/consumer-check.sh
 ```
 
-This script creates two temporary applications, downloads the module from the public Maven repository, and tests their routes and views with both Scala versions. It also checks that Play serves the JavaScript included in the JAR.
+This script creates two temporary applications, downloads the module from the public Maven repository, and tests their routes and views with both Scala versions. It also checks that Play serves the JavaScript included in the JAR. To check a particular existing stack, set `PLAY_VERSION` and pass its Scala version:
+
+```bash
+PLAY_VERSION=3.0.0 bash scripts/consumer-check.sh 2.13.12
+PLAY_VERSION=3.0.11 bash scripts/consumer-check.sh 3.3.6
+WEBMCP_TEST_CONTEXT_PATH=/shop bash scripts/browser-check.sh
+```
+
+The consumer script uses your selected `JAVA_HOME`. `WEBMCP_VERSION` and `WEBMCP_REPOSITORY` can select a different module release or a local Maven repository.
 
 To try a local change in your own project:
 
@@ -315,9 +382,11 @@ Keep the same `libraryDependencies` line in the consuming project. The locally p
 | --- | --- |
 | `supported: false` | WebMCP enabled, HTTPS/localhost context, `tools` policy, and browser version. |
 | No tools in ChatGPT | Built-in browser, access to site tools, imperative mode, and top-level page. |
-| JavaScript returns 404 | Existing assets route and the path `lib/play-webmcp/play-webmcp.js`, without a version number. |
+| JavaScript returns 404 | Existing assets route, `data-webmcp-runtime` generated by Play, and the path `lib/play-webmcp/play-webmcp.js` without a version number. Put the dependency on the subproject that serves the page. |
+| Asset build rejects `import` or `await` | These files are ES modules. Use a module-aware asset step, or exclude them from an older minifier while keeping the rest of your pipeline. |
 | `unknown handler` | The `handler` field must match a function passed to `registerTools`. |
 | POST rejected with 403 | Session, form CSRF token, and server authorization. Make sure the request sends the required session and token. |
+| `UnsupportedClassVersionError` on Java 11 | Use module 0.2.0 or later; 0.1.0 required Java 17. |
 | Scala compilation error | The artifact suffix must match your project's Scala version; use `%%` with sbt. |
 | Tool still present after a view replacement | Call `dispose()` and inspect cleanup errors before registering again. |
 
