@@ -1,5 +1,7 @@
 package playwebmcp;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import play.libs.Json;
@@ -19,8 +21,10 @@ public final class Tool {
         requireText(inputSchemaJson, "inputSchemaJson");
         JsonNode schema;
         try {
-            schema = Json.parse(inputSchemaJson);
-        } catch (RuntimeException error) {
+            schema = Json.mapper().readerFor(JsonNode.class)
+                    .with(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                    .readValue(inputSchemaJson);
+        } catch (JsonProcessingException | RuntimeException error) {
             throw new IllegalArgumentException("inputSchemaJson must be valid JSON", error);
         }
         if (!schema.isObject() || !"object".equals(schema.path("type").asText())) {

@@ -20,6 +20,8 @@ function readTools(document, handlers) {
       requireMetadata(typeof spec[field] === 'string' && spec[field].trim().length > 0,
         `tool metadata ${index + 1} needs a nonempty ${field}`);
     }
+    requireMetadata(spec.name.length <= 128 && !/[^A-Za-z0-9_.-]/.test(spec.name),
+      'tool names must contain 1-128 ASCII letters, digits, underscores, dots or hyphens');
     requireMetadata(!names.has(spec.name), `duplicate tool name: ${spec.name}`);
     names.add(spec.name);
     requireMetadata(Object.hasOwn(handlers, spec.handler) && typeof handlers[spec.handler] === 'function',

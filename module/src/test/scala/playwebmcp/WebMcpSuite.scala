@@ -50,6 +50,14 @@ class WebMcpSuite extends FunSuite {
     intercept[IllegalArgumentException](Tool.create("search", "Search", schema, ""))
   }
 
+  test("rejects trailing JSON instead of silently dropping part of the schema") {
+    for (trailing <- Seq(" {}", " true", " invalid")) {
+      intercept[IllegalArgumentException](Tool.create("search", "Search", schema + trailing, "search"))
+    }
+    val valid = Tool.create("search", "Search", schema + " \n\t", "search")
+    assertEquals(valid.toJson().path("inputSchema").path("type").asText(), "object")
+  }
+
   test("namespaced names and boolean property schemas are preserved") {
     val value = Tool.create("catalog.search", "Search", """{"type":"object","properties":{"extra":false}}""", "search")
     assertEquals(value.toJson().path("name").asText(), "catalog.search")

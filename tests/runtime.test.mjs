@@ -199,3 +199,16 @@ test('registration never executes application handlers and execution failures re
   assert.equal(calls, 1);
   await report.dispose();
 });
+
+test('rejects invalid tool names before registering any member of the batch', async t => {
+  for (const name of ['invalid name', 'tool/name', 'é', 'x'.repeat(129), 'search\n']) {
+    await t.test(JSON.stringify(name), async () => {
+      let calls = 0;
+      const context = { registerTool() { calls++; } };
+      await assert.rejects(registerTools(handlers, {
+        document: documentFor([tool(), tool({ name })], context), navigator: {}
+      }), TypeError);
+      assert.equal(calls, 0, 'A malformed later tool must not partially register the batch');
+    });
+  }
+});
