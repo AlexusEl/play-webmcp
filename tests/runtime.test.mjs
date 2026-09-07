@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { registerTools } from '../module/src/main/resources/META-INF/resources/webjars/play-webmcp/0.1.0/play-webmcp.js';
+import { registerTools } from '../module/src/main/assets/play-webmcp.js';
 
 // These are API contract tests with doubles, not tests of native browser/agent support.
 const tool = (changes = {}) => ({

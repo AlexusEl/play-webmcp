@@ -92,6 +92,7 @@ public final class HomeController extends Controller {
 
     private static List<String> matching(String query) {
         String normalized = query.toLowerCase(Locale.ROOT);
-        return PRODUCTS.stream().filter(p -> p.toLowerCase(Locale.ROOT).contains(normalized)).toList();
+        return PRODUCTS.stream().filter(p -> p.toLowerCase(Locale.ROOT).contains(normalized))
+            .collect(java.util.stream.Collectors.toList());
     }
 }
