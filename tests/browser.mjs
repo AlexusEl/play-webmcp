@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
-const baseURL = process.env.BASE_URL || 'http://localhost:9000';
-const assetPath = '/assets/lib/play-webmcp/play-webmcp.js';
+const baseURL = process.env.BASE_URL || 'http://localhost:9000/';
+const appPath = path => new URL(path.replace(/^\//, ''), baseURL.replace(/\/+$/, '') + '/').pathname;
+const assetPath = appPath('assets/lib/play-webmcp/play-webmcp.js');
 const browserOptions = process.env.CHROMIUM_EXECUTABLE_PATH
   ? { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH }
   : { channel: 'chromium' };
@@ -24,7 +25,7 @@ async function openPage(context) {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  const response = await page.goto('/', { waitUntil: 'networkidle' });
+  const response = await page.goto(baseURL, { waitUntil: 'networkidle' });
   assert.equal(response.status(), 200, `Sample application must return HTTP 200 at ${baseURL}`);
   assert.match(await page.title(), /^Play WebMCP — exemple (Scala|Java)$/,
     'Refusing to interact: BASE_URL does not identify a Play WebMCP sample application');
@@ -49,7 +50,7 @@ test('real browser: ordinary forms, packaged module and server validation withou
 
   await page.locator('#query').fill('souris');
   await Promise.all([
-    page.waitForResponse(response => new URL(response.url()).pathname === '/api/products'),
+    page.waitForResponse(response => new URL(response.url()).pathname === appPath('api/products')),
     page.locator('#search-form button').click()
   ]);
   await page.waitForFunction(() => document.querySelector('#search-results')?.textContent.trim() === 'Souris');
@@ -66,7 +67,7 @@ test('real browser: ordinary forms, packaged module and server validation withou
     const oldSearchGate = new Promise(resolve => { releaseOldSearch = resolve; });
     let sawOldSearch;
     const oldSearchStarted = new Promise(resolve => { sawOldSearch = resolve; });
-    const slowSearch = '**/api/products?query=clav';
+    const slowSearch = `**${appPath('api/products')}?query=clav`;
     await page.route(slowSearch, async route => {
       sawOldSearch();
       await oldSearchGate;
@@ -101,7 +102,7 @@ test('real browser: ordinary forms, packaged module and server validation withou
     name: element.name, value: element.value
   }));
   assert.ok(token.name && token.value, 'Play must render a nonempty CSRF token');
-  const post = form => context.request.post('/support', {
+  const post = form => context.request.post(appPath('support'), {
     headers: { Accept: 'application/json' }, form
   });
   const invalid = await post({ [token.name]: token.value, name: '', message: '' });
@@ -116,7 +117,7 @@ test('real browser: ordinary forms, packaged module and server validation withou
   assert.equal(missingToken.status(), 403, 'An existing session must not authorize a tokenless POST');
   const wrongToken = await post({ [token.name]: 'invalid-token', name: 'Ada', message: 'Besoin d’aide' });
   assert.equal(wrongToken.status(), 403, 'Invalid CSRF tokens must be rejected');
-  const invalidSearch = await context.request.get(`/api/products?query=${'x'.repeat(101)}`);
+  const invalidSearch = await context.request.get(`${appPath('api/products')}?query=${'x'.repeat(101)}`);
   assert.equal(invalidSearch.status(), 400);
   assert.ok((await invalidSearch.json()).errors.query);
 
@@ -134,7 +135,7 @@ test('real browser: ordinary forms, packaged module and server validation withou
   const { page: plainPage } = await openPage(plain);
   await plainPage.locator('#query').fill('clav');
   await Promise.all([
-    plainPage.waitForURL('**/?query=clav'),
+    plainPage.waitForURL(url => url.pathname === new URL(baseURL).pathname && url.searchParams.get('query') === 'clav'),
     plainPage.locator('#search-form button').click()
   ]);
   assert.deepEqual(await plainPage.locator('#search-results li').allTextContents(), ['Clavier']);
@@ -220,7 +221,7 @@ test('real browser: native WebMCP discovers and executes the application tools',
 
   let supportRequests = 0;
   page.on('request', request => {
-    if (request.method() === 'POST' && new URL(request.url()).pathname === '/support') supportRequests++;
+    if (request.method() === 'POST' && new URL(request.url()).pathname === appPath('support')) supportRequests++;
   });
   page.once('dialog', dialog => dialog.dismiss());
   const cancelled = await executeTool(page, api, 'create_support_request', { name: 'Ada', message: 'Annuler cette demande.' });

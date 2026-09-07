@@ -1,4 +1,5 @@
-import { registerTools } from '../lib/play-webmcp/play-webmcp.js';
+const runtimeUrl = document.getElementById('page-tools').dataset.webmcpRuntime;
+const { registerTools } = await import(runtimeUrl);
 
 const searchForm = document.querySelector('#search-form');
 const supportForm = document.querySelector('#support-form');

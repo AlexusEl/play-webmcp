@@ -51,18 +51,55 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: sbt javaExample/stage scalaExample/stage
       - run: bash scripts/browser-check.sh
+      - run: WEBMCP_TEST_CONTEXT_PATH=/shop bash scripts/browser-check.sh
 
   distribution:
-    name: Install published JARs in independent applications
+    name: Package Java 11 artifacts against Play 3.0.0
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '11'
           cache: sbt
       - uses: sbt/setup-sbt@v1
       - run: >-
-          sbt 'set webmcp / publishTo := Some(Resolver.file("staging", file("target/maven-repository"))(Resolver.mavenStylePatterns))' +webmcp/publish
-      - run: WEBMCP_REPOSITORY="file://$PWD/target/maven-repository" bash scripts/consumer-check.sh
+          sbt 'set webmcp / publishTo := Some(Resolver.file("staging", file("target/maven-repository"))(Resolver.mavenStylePatterns))' +webmcp/test +webmcp/publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: module-maven-repository
+          path: target/maven-repository
+          if-no-files-found: error
+
+  consumers:
+    name: Install in Play ${{ matrix.play }} / ${{ matrix.scala || 'Scala 2.13 and 3' }} / Java ${{ matrix.java }}
+    needs: distribution
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        play: ['3.0.0', '3.0.1', '3.0.2', '3.0.3', '3.0.4', '3.0.5', '3.0.6', '3.0.7', '3.0.8', '3.0.9', '3.0.10', '3.0.11']
+        java: ['11']
+        scala: ['']
+        include:
+          - { play: '3.0.0', java: '11', scala: '2.13.12' }
+          - { play: '3.0.0', java: '11', scala: '3.3.1' }
+          - { play: '3.0.11', java: '17', scala: '' }
+          - { play: '3.0.11', java: '21', scala: '' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: sbt
+      - uses: sbt/setup-sbt@v1
+      - uses: actions/download-artifact@v4
+        with:
+          name: module-maven-repository
+          path: target/consumer-maven
+      - run: WEBMCP_REPOSITORY="file://$PWD/target/consumer-maven" bash scripts/consumer-check.sh
+        env:
+          PLAY_VERSION: ${{ matrix.play }}
+          SCALA_VERSION: ${{ matrix.scala }}

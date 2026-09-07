@@ -57,17 +57,28 @@ lazy val root = (project in file("."))
   .aggregate(javaExample, scalaExample)
   .settings(name := "play-webmcp-consumer-check")
 
+// Resolve the host framework without this module to distinguish Play's own
+// Scala runtime requirements from changes introduced by the installed library.
+lazy val baseline = (project in file("baseline"))
+  .enablePlugins(PlayJava)
+  .settings(libraryDependencies += guice)
+
 lazy val checkConsumerDependencies = taskKey[Unit]("Verify that installing the module preserves the application's Play and Scala versions")
 
 lazy val exampleSettings = Seq(
   checkConsumerDependencies := {
     val requestedScala = sys.env.get("SCALA_VERSION").filter(_.nonEmpty).getOrElse(scalaVersion.value)
     require(scalaVersion.value == requestedScala, s"Expected Scala $requestedScala, got ${scalaVersion.value}")
-    val modules = (Compile / update).value.allModules
+    val modules = (Compile / dependencyClasspath).value.flatMap(_.get(moduleID.key))
+    val hostModules = (baseline / Compile / dependencyClasspath).value.flatMap(_.get(moduleID.key))
+    def scalaLibraries(dependencies: Seq[ModuleID]) = dependencies
+      .filter(m => m.organization == "org.scala-lang" && Set("scala-library", "scala3-library_3").contains(m.name))
+      .map(m => m.name -> m.revision).toSet
+    require(scalaLibraries(modules) == scalaLibraries(hostModules),
+      s"The module changed Scala libraries: ${scalaLibraries(hostModules)} -> ${scalaLibraries(modules)}")
     val expected = Seq(
       ("org.playframework", "play_" + scalaBinaryVersion.value, sys.env("PLAY_VERSION")),
-      ("io.github.alexusel", "play-webmcp_" + scalaBinaryVersion.value, sys.env("WEBMCP_VERSION")),
-      ("org.scala-lang", if (scalaBinaryVersion.value == "3") "scala3-library_3" else "scala-library", scalaVersion.value)
+      ("io.github.alexusel", "play-webmcp_" + scalaBinaryVersion.value, sys.env("WEBMCP_VERSION"))
     )
     expected.foreach { case (group, artifact, version) =>
       val resolved = modules.filter(m => m.organization == group && m.name == artifact).map(_.revision).distinct
