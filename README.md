@@ -11,7 +11,7 @@
 
 The module provides Twirl helpers and a small JavaScript file with no browser dependencies. You choose which actions to expose and reuse your application's JavaScript, routes, and permissions.
 
-**Experimental version 0.2.0.** WebMCP is still evolving. Support depends on both the browser and the agent. [Compatibility](#browsers-and-agents) · [Add to your site](#installation) · [First tool](#your-first-tool-in-two-files) · [Examples](#try-the-java-and-scala-applications) · [Tests](#development-and-testing)
+**Experimental version 0.3.0.** WebMCP is still evolving. Support depends on both the browser and the agent. [Compatibility](#browsers-and-agents) · [Add to your site](#installation) · [First tool](#your-first-tool-in-two-files) · [Dynamic views](#components-and-pages-updated-without-a-reload) · [Examples](#try-the-java-and-scala-applications) · [Tests](#development-and-testing)
 
 ## How it works
 
@@ -73,7 +73,7 @@ In your **Java or Scala** application's `build.sbt`:
 resolvers += "play-webmcp releases" at
   "https://raw.githubusercontent.com/HackInvent/play-webmcp/maven"
 
-libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.2.0"
+libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.3.0"
 ```
 
 The double `%%` selects the artifact for your Scala version, including in Java projects. This version is distributed through the project's public Maven repository, **not Maven Central**. The JARs are also available in the [GitHub releases](https://github.com/HackInvent/play-webmcp/releases).
@@ -87,10 +87,10 @@ For a build with several subprojects, put **both settings on the Play subproject
 ```scala
 resolvers += "play-webmcp releases" at
   "https://raw.githubusercontent.com/HackInvent/play-webmcp/maven",
-libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.2.0"
+libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.3.0"
 ```
 
-Upgrading from 0.1.0: change the dependency version to `0.2.0` and rebuild. Existing helper calls and the public runtime path stay the same.
+Upgrading from 0.1.0 or 0.2.0: change the dependency version to `0.3.0`, then run `sbt clean update` before rebuilding. Play can otherwise keep an older extracted WebJar file in `target/`. Existing helper calls and the public runtime path stay the same.
 
 ### 2. Reuse your assets route
 
@@ -100,7 +100,7 @@ If your application does not already serve static files, add this route to `conf
 GET   /assets/*file   controllers.Assets.versioned(path="/public", file: Asset)
 ```
 
-The library's JavaScript is bundled in the JAR and extracted by Play to `lib/play-webmcp/play-webmcp.js`. Do not add a second route if your assets route already exists. Do not include `0.2.0` in this public path.
+The library's JavaScript is bundled in the JAR and extracted by Play to `lib/play-webmcp/play-webmcp.js`. Do not add a second route if your assets route already exists. Do not include `0.3.0` in this public path.
 
 The example below uses `Assets.versioned`. If your application uses `Assets.at` or an injected `AssetsFinder`, use that same helper for **both JavaScript URLs**:
 
@@ -288,10 +288,68 @@ The runtime registers standard WebMCP tools. Your agent uses the discovery and e
 
 Check the API version when writing this client: Chromium 153 expects serialized JSON arguments for `executeTool`, while the September 4 draft describes an object. Choose the format before calling the tool; do not automatically retry a write operation to try another format. The [native test](tests/browser.mjs) illustrates this distinction. Sources: [tested Chromium IDL](https://chromium.googlesource.com/chromium/src/+/153.0.8010.12/third_party/blink/renderer/core/script_tools/model_context.idl), [draft](https://webmachinelearning.github.io/webmcp/).
 
+## Components and pages updated without a reload
+
+Since **0.3.0**, `registerTools(handlers, { root })` can read tool metadata from a single HTML container. This is useful for a cart, search panel, or any view that your application replaces without loading a new page. Each call returns its own registration object. Calling `dispose()` on it removes only the tools registered by that call.
+
+Use a separate `root` for each independent component. Each root includes all its descendants, so registered roots must not overlap. Do not also register the same metadata through a whole-page call. Tool names must still be unique across the page: for example, `cart.read` and `catalog.search`.
+
+Using the same `Tool` and `WebMcp` imports as above, render the metadata inside the component:
+
+```scala
+<section id="cart-panel">
+    <span data-item-count>2</span> items in your cart
+    @WebMcp.tool(
+        Tool.create(
+            "cart.read",
+            "Read the item count displayed in the cart.",
+            """{"type":"object","properties":{},"additionalProperties":false}""",
+            "readCart"
+        ).withReadOnly(true)
+    )
+</section>
+```
+
+In your external JavaScript module, use the `registerTools` import shown in the first-tool example:
+
+```javascript
+export async function attachCartTools(root) {
+  const tools = await registerTools({
+    readCart: async () => ({
+      items: Number(root.querySelector('[data-item-count]').textContent)
+    })
+  }, { root });
+
+  return async function detachCartTools() {
+    const cleanup = await tools.dispose();
+    if (cleanup.remaining.length > 0) {
+      throw new Error('Cart tools could not be removed. Reload the page before replacing the component.');
+    }
+  };
+}
+```
+
+After inserting the HTML, keep its cleanup function:
+
+```javascript
+const detachCartTools = await attachCartTools(document.getElementById('cart-panel'));
+```
+
+Before removing or replacing that HTML, run `await detachCartTools()`. Then insert the new component and call `attachCartTools` again. Finish cleanup before mounting the replacement. Your application controls these steps; the module does not watch the DOM or register newly inserted tools automatically.
+
+```mermaid
+flowchart LR
+    H["Insert component HTML"] --> R["Register tools with this root"]
+    R --> D["Await dispose before removing HTML"]
+    D --> H
+```
+
+`root` must be a container in the same document. With WebMCP available, a missing container (`null`) raises an error before any tools are registered. An empty container registers no tools. Omitting `root` keeps the original behavior of reading the whole document. You can also pass your component's `AbortSignal` with `{ root, signal }`; await `dispose()` when you need to check cleanup errors from an older API.
+
 ## Lifecycle, CSP, and limitations
 
 - `registerTools` prefers `document.modelContext`. It uses `navigator.modelContext` if only that older API is available and reports the choice in `api`.
-- Call it once per view. After a dynamic view replacement, call `await tools.dispose()` before registering the tools again. Check `remaining` and `errors` when using older APIs.
+- Call it once per view or component. Before replacing its HTML, call `await tools.dispose()`, then register the replacement. Check `remaining` and `errors` when using older APIs.
 - The `signal` option lets you cancel registration. The current API removes tools through `AbortController`; older implementations use `unregisterTool` when available.
 - Without the API, `supported` is `false`. A registration error triggers cleanup of tools already added and exposes any cleanup failures.
 - The helper produces inert JSON, and the code runs in an external file. Allow that file in your usual CSP; the module does not require `unsafe-inline` or `unsafe-eval`. If your CSP requires a nonce on external scripts, keep using your application's existing nonce helper.
@@ -313,7 +371,7 @@ Open `http://localhost:19001`. For Scala, use another terminal:
 sbt "scalaExample/run 19002"
 ```
 
-Open `http://localhost:19002`. Each page contains a search, a support form, and a visible WebMCP status. The demo interfaces and sample product names are currently in French. The examples use a fixed product list and do not store requests. Their session keys are local demo keys; use your own configuration when deploying an application.
+Open `http://localhost:19002`. Each page contains a search, a support form, and a visible WebMCP status. The Java example serves assets through `/static`; the Scala example uses `/assets`. Both use URLs generated by Play. The demo interfaces and sample product names are currently in French. The examples use a fixed product list and do not store requests. Their session keys are local demo keys; use your own configuration when deploying an application.
 
 ## Development and testing
 
@@ -328,6 +386,8 @@ sbt javaExample/stage scalaExample/stage
 bash scripts/browser-check.sh
 ```
 
+After editing the runtime or changing the module version, run `sbt clean` before building the examples again. This removes extracted WebJar files that Play may otherwise reuse.
+
 The last script starts and stops its own applications on ports 19001 and 19002. These ports must be free. To test an application that is already running:
 
 ```bash
@@ -338,8 +398,8 @@ The checks cover:
 
 - Java and Scala APIs, schemas, names, and HTML/JSON escaping.
 - The real Play routes and views in both applications, validation, and CSRF protection.
-- The runtime with no API, the current API, the older API, cancellation, and cleanup errors. These unit tests use API test doubles.
-- A real browser: forms with and without JavaScript, the asset from the JAR, native WebMCP discovery and calls, and confirmation and cancellation of a write operation. These tests do not install a fake WebMCP API and fail if the native API is missing.
+- The runtime with no API, the current API, the older API, cancellation, cleanup errors, and independent component registration. These unit tests use API test doubles.
+- A real browser: forms with and without JavaScript, the asset from the JAR, native WebMCP discovery and calls, component replacement that preserves other tools, and confirmation and cancellation of a write operation. These tests do not install a fake WebMCP API and fail if the native API is missing.
 
 The [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) builds the distributable JARs once against Play 3.0.0, Scala 2.13.12/3.3.1, and Java 11. Independent Java and Scala applications then install those same JARs:
 
@@ -348,7 +408,7 @@ The [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) bui
 | Every stable Play 3.0 release | 3.0.0–3.0.11, with Scala 2.13.18 and 3.3.6 on Java 11 |
 | Minimum Scala versions | Play 3.0.0 with Scala 2.13.12 and 3.3.1 on Java 11 |
 | Additional JDKs | Play 3.0.11 with both Scala families on Java 17 and 21 |
-| Browser integration | Java and Scala examples at `/` and `/shop`, with and without native WebMCP |
+| Browser integration | Java `/static` and Scala `/assets`, both at `/` and `/shop`; native tool calls, component replacement, and ordinary forms |
 
 The installation tests also compare the application's Play and Scala dependencies before and after adding the module. The browser version is pinned by `package-lock.json` to make tests reproducible.
 
@@ -374,7 +434,7 @@ To try a local change in your own project:
 sbt +webmcp/publishLocal
 ```
 
-Keep the same `libraryDependencies` line in the consuming project. The locally published artifacts will be available on your machine.
+Keep the same `libraryDependencies` line in the consuming project, then run `sbt clean update` there before rebuilding. The locally published artifacts will be available on your machine.
 
 ## Troubleshooting
 
@@ -384,10 +444,12 @@ Keep the same `libraryDependencies` line in the consuming project. The locally p
 | No tools in ChatGPT | Built-in browser, access to site tools, imperative mode, and top-level page. |
 | JavaScript returns 404 | Existing assets route, `data-webmcp-runtime` generated by Play, and the path `lib/play-webmcp/play-webmcp.js` without a version number. Put the dependency on the subproject that serves the page. |
 | Asset build rejects `import` or `await` | These files are ES modules. Use a module-aware asset step, or exclude them from an older minifier while keeping the rest of your pipeline. |
+| Old runtime after an upgrade | Run `sbt clean update`, rebuild, and reload the page. Play may keep an older extracted WebJar file in `target/`. |
 | `unknown handler` | The `handler` field must match a function passed to `registerTools`. |
 | POST rejected with 403 | Session, form CSRF token, and server authorization. Make sure the request sends the required session and token. |
 | `UnsupportedClassVersionError` on Java 11 | Use module 0.2.0 or later; 0.1.0 required Java 17. |
 | Scala compilation error | The artifact suffix must match your project's Scala version; use `%%` with sbt. |
+| `root must be a document or a DOM container` | The component selector returned `null`, or `root` is not a DOM container. Insert the component HTML before registering its tools. |
 | Tool still present after a view replacement | Call `dispose()` and inspect cleanup errors before registering again. |
 
 ## Contributing and license
