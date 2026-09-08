@@ -106,14 +106,14 @@ jobs:
           - { play: '2.9.9', java: '11', scala: '', sbt: '1.11.7' }
           - { play: '2.9.10', java: '11', scala: '', sbt: '1.11.7' }
           - { play: '2.9.11', java: '11', scala: '', sbt: '1.11.7' }
-          - { play: '2.8.0', java: '11', scala: '', sbt: '1.5.8' }
-          - { play: '2.8.1', java: '11', scala: '', sbt: '1.5.8' }
-          - { play: '2.8.2', java: '11', scala: '', sbt: '1.5.8' }
-          - { play: '2.8.3', java: '11', scala: '', sbt: '1.5.8' }
-          - { play: '2.8.4', java: '11', scala: '', sbt: '1.5.8' }
-          - { play: '2.8.5', java: '11', scala: '', sbt: '1.5.8' }
-          - { play: '2.8.6', java: '11', scala: '', sbt: '1.5.8' }
-          - { play: '2.8.7', java: '11', scala: '', sbt: '1.5.8' }
+          - { play: '2.8.0', java: '11', scala: '', sbt: '1.3.13' }
+          - { play: '2.8.1', java: '11', scala: '', sbt: '1.3.13' }
+          - { play: '2.8.2', java: '11', scala: '', sbt: '1.3.13' }
+          - { play: '2.8.3', java: '11', scala: '', sbt: '1.3.13' }
+          - { play: '2.8.4', java: '11', scala: '', sbt: '1.3.13' }
+          - { play: '2.8.5', java: '11', scala: '', sbt: '1.3.13' }
+          - { play: '2.8.6', java: '11', scala: '', sbt: '1.3.13' }
+          - { play: '2.8.7', java: '11', scala: '', sbt: '1.3.13' }
           - { play: '2.8.8', java: '11', scala: '', sbt: '1.5.8' }
           - { play: '2.8.9', java: '11', scala: '', sbt: '1.5.8' }
           - { play: '2.8.10', java: '11', scala: '', sbt: '1.5.8' }

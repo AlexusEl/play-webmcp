@@ -22,7 +22,11 @@ case "$PLAY_VERSION" in
   2.8.*)
     export WEBMCP_ARTIFACT=play-webmcp-play28 PLAY_GROUP=com.typesafe.play
     export WEBMCP_SCALA_VERSIONS=2.12.20,2.13.18 WEBMCP_JAVA_RELEASE=8
-    task_default_sbt=1.5.8
+    # Twirl in these older Play plugins uses Scala compiler internals from sbt 1.3.
+    case "$PLAY_VERSION" in
+      2.8.[0-7]) task_default_sbt=1.3.13 ;;
+      *) task_default_sbt=1.5.8 ;;
+    esac
     ;;
   2.9.*)
     export WEBMCP_ARTIFACT=play-webmcp-play29 PLAY_GROUP=com.typesafe.play
