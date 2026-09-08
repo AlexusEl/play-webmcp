@@ -314,3 +314,63 @@ test('real browser: replacing a component preserves other native page tools', { 
   assert.deepEqual((await listTools(page, api)).map(tool => tool.name).sort(), originalNames);
   assert.deepEqual(errors, []);
 });
+
+test('real browser: support tool preserves the latest result and reports failed sends', { timeout: 90000 }, async t => {
+  const browser = await launch(true);
+  t.after(() => browser.close());
+  const context = await browser.newContext({ baseURL });
+  const { page, errors } = await openPage(context);
+  const api = await nativeInterface(page);
+  assert.ok(api, 'This test requires native WebMCP discovery and execution');
+  page.on('dialog', dialog => dialog.accept());
+  const supportPath = appPath('support');
+  const routePattern = `**${supportPath}`;
+  let requests = 0;
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === supportPath) requests++;
+  });
+  let releaseOld;
+  const oldGate = new Promise(resolve => { releaseOld = resolve; });
+  let sawOld;
+  const oldStarted = new Promise(resolve => { sawOld = resolve; });
+  const oldResult = { ok: true, message: 'Old request completed after the newer one.' };
+  await page.route(routePattern, async route => {
+    const body = new URLSearchParams(route.request().postData());
+    if (body.get('name') === 'Old') {
+      sawOld();
+      await oldGate;
+      await route.fulfill({ json: oldResult });
+    } else {
+      await route.continue();
+    }
+  });
+  const old = executeTool(page, api, 'create_support_request', { name: 'Old', message: 'A delayed request.' });
+  // Attach a rejection handler immediately, including if a browser rejects concurrent execution.
+  const oldOutcome = old.then(value => ({ value }), error => ({ error }));
+  try {
+    await oldStarted;
+    assert.match(await page.locator('#support-result').textContent(), /Envoi de la demande/);
+    const latest = await executeTool(page, api, 'create_support_request', { name: 'Latest', message: 'A newer request.' });
+    assert.equal(latest.ok, true);
+    assert.match(latest.message, /Demande validée pour Latest/);
+    releaseOld();
+    assert.deepEqual(await oldOutcome, { value: oldResult });
+    assert.equal(await page.locator('#support-result').textContent(), latest.message);
+    assert.equal(await page.locator('#name').inputValue(), 'Latest');
+    assert.equal(requests, 2);
+  } finally {
+    releaseOld();
+    await oldOutcome;
+    await page.unroute(routePattern);
+  }
+
+  await page.route(routePattern, route => route.abort('connectionreset'));
+  try {
+    await assert.rejects(executeTool(page, api, 'create_support_request', { name: 'Offline', message: 'A failed send.' }));
+    assert.match(await page.locator('#support-result').textContent(), /n’a pas pu être confirmé/);
+    assert.equal(requests, 3, 'A failed write must not be sent again automatically');
+  } finally {
+    await page.unroute(routePattern);
+  }
+  assert.deepEqual(errors, []);
+});

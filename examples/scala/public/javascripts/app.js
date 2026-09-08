@@ -44,35 +44,51 @@ async function searchProducts({ query }, context = {}) {
 }
 
 async function createSupportRequest({ name, message }, context = {}) {
+  context.signal?.throwIfAborted();
   const requestId = ++latestSupport;
   supportForm.elements.namedItem('name').value = name;
   supportForm.elements.namedItem('message').value = message;
-  if (!window.confirm(`Valider cette demande de support pour ${name} ?\n\n${message}`)) {
-    supportResult.textContent = 'Demande annulée.';
-    return { ok: false, cancelled: true };
+  try {
+    const confirmed = window.confirm(`Valider cette demande de support pour ${name} ?\n\n${message}`);
+    context.signal?.throwIfAborted();
+    if (!confirmed) {
+      supportResult.textContent = 'Demande annulée.';
+      return { ok: false, cancelled: true };
+    }
+    supportResult.textContent = 'Envoi de la demande…';
+    // FormData includes the CSRF field rendered by Play; never invent a token.
+    const body = new URLSearchParams(new FormData(supportForm));
+    const response = await fetch(supportForm.action, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+      body,
+      signal: context.signal
+    });
+    context.signal?.throwIfAborted();
+    if (!response.headers.get('content-type')?.includes('application/json')) {
+      const notice = 'L’envoi n’a pas pu être confirmé. Vérifiez son état avant de réessayer.';
+      if (requestId === latestSupport) supportResult.textContent = notice;
+      return { ok: false, status: response.status, message: notice };
+    }
+    const result = await response.json();
+    context.signal?.throwIfAborted();
+    // Each caller receives its own result; only the latest request owns the visible notice.
+    if (requestId === latestSupport) {
+      supportResult.textContent = result.ok
+        ? result.message
+        : `Corrigez votre demande : ${JSON.stringify(result.errors)}`;
+    }
+    return result;
+  } catch (error) {
+    if (requestId === latestSupport) {
+      supportResult.textContent = context.signal?.aborted
+        ? 'Envoi interrompu. Vérifiez l’état de la demande avant de réessayer.'
+        : 'L’envoi n’a pas pu être confirmé. Vérifiez son état avant de réessayer.';
+    }
+    // A failed or cancelled response does not prove that the server rejected the write.
+    throw error;
   }
-  // FormData includes the CSRF field rendered by Play; never invent a token.
-  const body = new URLSearchParams(new FormData(supportForm));
-  const response = await fetch(supportForm.action, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: { Accept: 'application/json' },
-    body,
-    signal: context.signal
-  });
-  if (!response.headers.get('content-type')?.includes('application/json')) {
-    const message = 'Envoi refusé. Rechargez la page puis réessayez.';
-    if (requestId === latestSupport) supportResult.textContent = message;
-    return { ok: false, status: response.status, message };
-  }
-  const result = await response.json();
-  // Each caller receives its own result; only the latest request owns the visible notice.
-  if (requestId === latestSupport) {
-    supportResult.textContent = result.ok
-      ? result.message
-      : `Corrigez votre demande : ${JSON.stringify(result.errors)}`;
-  }
-  return result;
 }
 
 // Human search is enhanced by the same handler; native GET remains a fallback.

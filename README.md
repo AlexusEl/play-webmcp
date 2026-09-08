@@ -251,7 +251,9 @@ sequenceDiagram
 
 The examples demonstrate a search and a support request. Their JavaScript functions use `fetch`, preserve the session, pass the existing CSRF token, and display the results. The server returns `{ok: true, ...}` or `{ok: false, errors: ...}`. The module preserves the result returned by your function.
 
-The execution context supplied by the browser is passed as the handler's second argument. If a cancellation signal is available, pass `context.signal` to `fetch`, as in the examples.
+The execution context supplied by the browser is passed as the handler's second argument. If a cancellation signal is available, pass `context.signal` to `fetch`, as in the examples. Check `context.signal?.throwIfAborted()` before changing the page or asking for confirmation, and after awaiting a response.
+
+Each caller receives its own result, while only the latest request updates the examples' shared status. Support requests show a pending notice and an explicit message if sending cannot be confirmed. A network failure or cancellation does not prove that the server rejected a write: check its state before trying again. The examples never retry a write automatically.
 
 Keep access checks and validation in your Play actions. A description or `readOnlyHint` helps the agent understand an action; it is not an authorization check. Metadata is visible in the page and must not contain secrets. The examples ask for confirmation before a support request and validate it without storing it.
 
@@ -399,7 +401,8 @@ The checks cover:
 - Java and Scala APIs, schemas, names, and HTML/JSON escaping.
 - The real Play routes and views in both applications, validation, and CSRF protection.
 - The runtime with no API, the current API, the older API, cancellation, cleanup errors, and independent component registration. These unit tests use API test doubles.
-- A real browser: forms with and without JavaScript, the asset from the JAR, native WebMCP discovery and calls, component replacement that preserves other tools, and confirmation and cancellation of a write operation. These tests do not install a fake WebMCP API and fail if the native API is missing.
+- The example handlers with delayed responses, network and JSON errors, cancellation, and confirmation. These unit tests use DOM and HTTP test doubles.
+- A real browser: forms with and without JavaScript, the asset from the JAR, native WebMCP discovery and calls, component replacement that preserves other tools, confirmation and cancellation of a write operation, delayed support responses, and network failures. These tests do not install a fake WebMCP API and fail if the native API is missing.
 
 The [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) builds the distributable JARs once against Play 3.0.0, Scala 2.13.12/3.3.1, and Java 11. Independent Java and Scala applications then install those same JARs:
 

@@ -92,3 +92,94 @@ for (const language of ['java', 'scala']) {
     assert.equal(app.supportResult.textContent, cancellationNotice);
   });
 }
+
+for (const language of ['java', 'scala']) {
+  test(`${language}: an already cancelled support call has no form, dialog or HTTP effects`, async t => {
+    const app = await application(t, language);
+    const controller = new AbortController();
+    const reason = new Error('The agent cancelled this call');
+    controller.abort(reason);
+    let dialogs = 0;
+    let requests = 0;
+    window.confirm = () => { dialogs++; return true; };
+    globalThis.fetch = async (url, { signal }) => { requests++; signal.throwIfAborted(); };
+    const notice = app.supportResult.textContent;
+    await assert.rejects(app.execute({ name: 'Agent', message: 'Cancelled' }, { signal: controller.signal }), error => error === reason);
+    assert.equal(dialogs, 0);
+    assert.equal(requests, 0);
+    assert.equal(app.fields.name.value, 'draft name');
+    assert.equal(app.fields.message.value, 'draft message');
+    assert.equal(app.supportResult.textContent, notice);
+  });
+
+  test(`${language}: cancellation during confirmation prevents the HTTP request`, async t => {
+    const app = await application(t, language);
+    const controller = new AbortController();
+    const reason = new Error('Cancelled during confirmation');
+    let requests = 0;
+    window.confirm = () => { controller.abort(reason); return true; };
+    globalThis.fetch = async (url, { signal }) => { requests++; signal.throwIfAborted(); };
+    await assert.rejects(app.execute({ name: 'Agent', message: 'Cancelled' }, { signal: controller.signal }), error => error === reason);
+    assert.equal(requests, 0, 'Check cancellation again after confirmation, before starting fetch');
+  });
+
+  test(`${language}: network and malformed JSON failures replace an old success without retrying`, async t => {
+    const app = await application(t, language);
+    for (const failure of [new TypeError('Network failed'), new SyntaxError('Invalid server JSON')]) {
+      const gate = deferred();
+      const previous = 'Previous request succeeded.';
+      app.supportResult.textContent = previous;
+      let requests = 0;
+      globalThis.fetch = async () => {
+        requests++;
+        await gate.promise;
+        if (failure instanceof TypeError) throw failure;
+        return { headers: new Headers({ 'Content-Type': 'application/json' }), json: async () => { throw failure; } };
+      };
+      const call = app.execute({ name: 'Agent', message: 'New request' });
+      const outcome = assert.rejects(call, error => error === failure);
+      const pendingNotice = app.supportResult.textContent;
+      gate.resolve();
+      await outcome;
+      assert.notEqual(pendingNotice, previous, 'The old success must not remain visible while another request is pending');
+      assert.match(app.supportResult.textContent, /n’a pas pu être confirmé/);
+      assert.equal(requests, 1, 'Never retry a write operation automatically');
+    }
+  });
+
+  test(`${language}: cancellation after receiving JSON cannot display success`, async t => {
+    const app = await application(t, language);
+    const controller = new AbortController();
+    const reason = new Error('Cancelled while reading the response');
+    globalThis.fetch = async () => ({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => {
+        controller.abort(reason);
+        return { ok: true, message: 'A stale success' };
+      }
+    });
+    await assert.rejects(app.execute({ name: 'Agent', message: 'New request' }, { signal: controller.signal }), error => error === reason);
+    assert.match(app.supportResult.textContent, /interrompu/);
+    assert.notEqual(app.supportResult.textContent, 'A stale success');
+  });
+
+  test(`${language}: an older network failure preserves a newer success`, async t => {
+    const app = await application(t, language);
+    const gate = deferred();
+    const failure = new TypeError('Old connection failed');
+    let requests = 0;
+    globalThis.fetch = async () => {
+      if (requests++ === 0) { await gate.promise; throw failure; }
+      return jsonResponse({ ok: true, message: 'New request succeeded.' });
+    };
+    const old = app.execute({ name: 'Old', message: 'Old request' });
+    const failed = assert.rejects(old, error => error === failure);
+    try {
+      await app.execute({ name: 'New', message: 'New request' });
+    } finally {
+      gate.resolve();
+    }
+    await failed;
+    assert.equal(app.supportResult.textContent, 'New request succeeded.');
+  });
+}
