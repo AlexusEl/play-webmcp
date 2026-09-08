@@ -7,6 +7,7 @@ const status = document.querySelector('#webmcp-status');
 const supportResult = document.querySelector('#support-result');
 
 let latestSearch = 0;
+let latestSupport = 0;
 
 async function searchProducts({ query }, context = {}) {
   context.signal?.throwIfAborted();
@@ -43,6 +44,7 @@ async function searchProducts({ query }, context = {}) {
 }
 
 async function createSupportRequest({ name, message }, context = {}) {
+  const requestId = ++latestSupport;
   supportForm.elements.namedItem('name').value = name;
   supportForm.elements.namedItem('message').value = message;
   if (!window.confirm(`Valider cette demande de support pour ${name} ?\n\n${message}`)) {
@@ -59,13 +61,17 @@ async function createSupportRequest({ name, message }, context = {}) {
     signal: context.signal
   });
   if (!response.headers.get('content-type')?.includes('application/json')) {
-    supportResult.textContent = 'Envoi refusé. Rechargez la page puis réessayez.';
-    return { ok: false, status: response.status, message: supportResult.textContent };
+    const message = 'Envoi refusé. Rechargez la page puis réessayez.';
+    if (requestId === latestSupport) supportResult.textContent = message;
+    return { ok: false, status: response.status, message };
   }
   const result = await response.json();
-  supportResult.textContent = result.ok
-    ? result.message
-    : `Corrigez votre demande : ${JSON.stringify(result.errors)}`;
+  // Each caller receives its own result; only the latest request owns the visible notice.
+  if (requestId === latestSupport) {
+    supportResult.textContent = result.ok
+      ? result.message
+      : `Corrigez votre demande : ${JSON.stringify(result.errors)}`;
+  }
   return result;
 }
 
