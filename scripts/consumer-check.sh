@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Run the example applications against a published Maven artifact, outside this build.
 # Optional argument (or SCALA_VERSION): a Scala 2.13.x or 3.x version. The default tests both families.
-# PLAY_VERSION selects the existing application version; WEBMCP_VERSION selects the published module.
+# PLAY_VERSION and SBT_VERSION select the existing build; WEBMCP_VERSION selects the published module.
 if (( $# > 1 )); then
   echo "Usage: $0 [Scala version]" >&2
   exit 2
@@ -17,6 +17,12 @@ fi
 export SCALA_VERSION="$task_scala_version"
 export PLAY_VERSION="${PLAY_VERSION:-3.0.11}"
 export WEBMCP_VERSION="${WEBMCP_VERSION:-0.4.0}"
+
+task_sbt_version=${SBT_VERSION:-1.11.7}
+if [[ ! "$task_sbt_version" =~ ^1\.[0-9]+\.[0-9]+$ ]]; then
+  echo "SBT_VERSION must be a stable sbt 1.x version" >&2
+  exit 2
+fi
 
 task_repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 task_consumer_dir=$(mktemp -d "${TMPDIR:-/tmp}/play-webmcp-consumer.XXXXXXXX")
@@ -36,10 +42,9 @@ for task_language in java scala; do
 done
 mkdir -p "$task_consumer_dir/project"
 
-cat > "$task_consumer_dir/project/build.properties" <<'BUILD_PROPERTIES'
-sbt.version=1.11.7
-BUILD_PROPERTIES
+printf 'sbt.version=%s\n' "$task_sbt_version" > "$task_consumer_dir/project/build.properties"
 cat > "$task_consumer_dir/project/plugins.sbt" <<'PLUGINS'
+resolvers += "Maven Central (Apache)" at "https://repo.maven.apache.org/maven2"
 addSbtPlugin("org.playframework" % "sbt-plugin" % sys.env("PLAY_VERSION"))
 PLUGINS
 cat > "$task_consumer_dir/build.sbt" <<'BUILD'
@@ -48,7 +53,7 @@ ThisBuild / crossScalaVersions := Seq("2.13.18", "3.3.6")
 // Exclude Ivy local so a previous publishLocal cannot mask a broken distribution.
 ThisBuild / externalResolvers := Seq(
   "WebMCP published artifact" at sys.env("WEBMCP_REPOSITORY"),
-  Resolver.mavenCentral
+  "Maven Central (Apache)" at "https://repo.maven.apache.org/maven2"
 )
 ThisBuild / publish / skip := true
 ThisBuild / javacOptions ++= Seq("--release", "11", "-Xlint:unchecked")
