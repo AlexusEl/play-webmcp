@@ -3,15 +3,15 @@
 [![CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml/badge.svg)](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/v/release/HackInvent/play-webmcp?include_prereleases)](https://github.com/HackInvent/play-webmcp/releases)
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Play](https://img.shields.io/badge/Play-3.0.0%E2%80%933.0.11-92d13d)
-![Java](https://img.shields.io/badge/Java-11%20%7C%2017%20%7C%2021-orange)
-![Scala](https://img.shields.io/badge/Scala-2.13%20%7C%203-red)
+![Play](https://img.shields.io/badge/Play-2.8%20%7C%202.9%20%7C%203.0-92d13d)
+![Java](https://img.shields.io/badge/Java-8%20%7C%2011%20%7C%2017%20%7C%2021-orange)
+![Scala](https://img.shields.io/badge/Scala-2.12%20%7C%202.13%20%7C%203-red)
 
-**Add WebMCP tools to the views of an existing Play Java or Scala application.** A compatible agent can call these tools while the user sees the results on the same page.
+**Add WebMCP tools to the views of an existing Play 2.8, 2.9, or 3.0 Java or Scala application.** A compatible agent can call these tools while the user sees the results on the same page.
 
 The module provides Twirl helpers and a small JavaScript file with no browser dependencies. You choose which actions to expose and reuse your application's JavaScript, routes, and permissions.
 
-**Experimental version 0.4.0.** WebMCP is still evolving. Play compatibility and browser/agent availability are separate: installing the module does not enable WebMCP in the visitor's browser.
+**Experimental version 0.5.0.** WebMCP is still evolving. Play compatibility and browser/agent availability are separate: installing the module does not enable WebMCP in the visitor's browser.
 
 ## Contents
 
@@ -50,13 +50,21 @@ The library does not send anything to an AI provider. The agent uses the page wi
 
 ## Prerequisites
 
-To integrate the module:
+To integrate the module, you need an existing Play application with **Twirl HTML views**, a compatible JDK and sbt build, and a route that serves `public/` files.
 
-- An existing **Play 3.0.x** application with Twirl HTML views. The installation tests cover every stable release from **3.0.0 through 3.0.11**.
-- **JDK 11, 17, or 21**, as supported by your application. The module targets Java 11 bytecode.
-- **Scala 2.13 or Scala 3**, supported by your Play version. The JARs are built with Scala **2.13.12** and **3.3.1**; these minimum versions and **2.13.18 / 3.3.6** are tested. Java projects also use Scala for Play and Twirl. Keep your existing compatible Scala version.
-- Your application's existing compatible **sbt 1.x** setup. This repository uses **1.11.7**; installation on Play 3.0.0 is also tested with **sbt 1.9.9**.
-- A Play route that serves your `public/` files, which most applications already have.
+| Play releases checked | Module artifact | Scala families | JDKs checked |
+| --- | --- | --- | --- |
+| **3.0.0–3.0.11** | `play-webmcp` | 2.13, 3 | 11, 17, 21 |
+| **2.9.0–2.9.11** | `play-webmcp-play29` | 2.13, 3 | 11, 17, 21 |
+| **2.8.0–2.8.22** | `play-webmcp-play28` | 2.12, 2.13 | 8, 11 |
+
+Choose the artifact for your **Play version**, even in a Java application. The helpers, JavaScript API, and public asset paths are the same in all three. Keep your site's existing compatible Play, Scala, sbt, and JDK versions. See [the test matrix](#development-and-testing) for the combinations checked.
+
+The Play 2.8 JARs target Java 8 bytecode and are built with Scala **2.12.10 / 2.13.1**. The Play 2.9 and 3.0 JARs target Java 11 and are built with Scala **2.13.12 / 3.3.1**. Java projects also use Scala for Play and Twirl; `%%` in sbt selects the correct Scala artifact.
+
+The installation tests use **sbt 1.3.13** for Play 2.8.0–2.8.7 and **1.5.8** for Play 2.8.8–2.8.22. Play 2.9 and 3.0 are tested with **1.11.7**, plus **1.9.9** on their first releases. These are tested setups, not instructions to replace your working build tool.
+
+Play 2.0–2.7 and Play 1.x are not covered by these JVM artifacts. Move those applications to one of the listed Play lines before installing the module. This release adds module compatibility; it does not change the upstream maintenance status of your Play version.
 
 To use the tools:
 
@@ -65,7 +73,7 @@ To use the tools:
 - The page open, with the user signed in to your application if required.
 - The `tools` permissions policy must allow the page; its default is `self`. Do not disable origin isolation with `Origin-Agent-Cluster: ?0`. You do not need to add COOP/COEP just for this module.
 
-Node.js is useful **for developing and testing this repository**, but is not required to integrate the library or run your Play application. References: [Play requirements](https://www.playframework.com/documentation/3.0.x/Requirements), [WebMCP requirements](https://developer.chrome.com/docs/ai/webmcp).
+Node.js is useful **for developing and testing this repository**, but is not required to integrate the library or run your Play application. References: [Play 2.8 requirements](https://www.playframework.com/documentation/2.8.x/Requirements), [Play 2.9 requirements](https://www.playframework.com/documentation/2.9.x/Requirements), [Play 3 requirements](https://www.playframework.com/documentation/3.0.x/Requirements), [WebMCP requirements](https://developer.chrome.com/docs/ai/webmcp).
 
 ## Installation
 
@@ -80,13 +88,31 @@ Node.js is useful **for developing and testing this repository**, but is not req
 
 ### 1. Add the dependency
 
-In your **Java or Scala** application's `build.sbt`:
+In your **Java or Scala** application's `build.sbt`, add the resolver once:
 
 ```scala
 resolvers += "play-webmcp releases" at
   "https://raw.githubusercontent.com/HackInvent/play-webmcp/maven"
+```
 
-libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.4.0"
+Then choose **exactly one** dependency for your Play version. These are alternatives; installing several together would put duplicate classes and assets on the classpath.
+
+**Play 3.0.x:**
+
+```scala
+libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.5.0"
+```
+
+**Play 2.9.x:**
+
+```scala
+libraryDependencies += "io.github.alexusel" %% "play-webmcp-play29" % "0.5.0"
+```
+
+**Play 2.8.x:**
+
+```scala
+libraryDependencies += "io.github.alexusel" %% "play-webmcp-play28" % "0.5.0"
 ```
 
 The double `%%` selects the artifact for your Scala version, including in Java projects. This version is distributed through the project's public Maven repository, **not Maven Central**. The JARs are also available in the [GitHub releases](https://github.com/HackInvent/play-webmcp/releases).
@@ -103,11 +129,11 @@ lazy val site = (project in file("site"))
   .settings(
     resolvers += "play-webmcp releases" at
       "https://raw.githubusercontent.com/HackInvent/play-webmcp/maven",
-    libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.4.0"
+    libraryDependencies += "io.github.alexusel" %% "play-webmcp" % "0.5.0"
   )
 ```
 
-Use your existing project name and directory, and keep `PlayScala` for a Scala application. If the module is already installed, follow [Upgrading](#upgrading).
+Use your existing project name and directory, substitute the artifact chosen above, and keep `PlayScala` for a Scala application. If the module is already installed, follow [Upgrading](#upgrading).
 
 ### 2. Reuse your assets route
 
@@ -117,7 +143,7 @@ If your application does not already serve static files, add this route to `conf
 GET   /assets/*file   controllers.Assets.versioned(path="/public", file: Asset)
 ```
 
-The library's JavaScript is bundled in the JAR and extracted by Play to `lib/play-webmcp/play-webmcp.js`. Do not add a second route if your assets route already exists. Do not include `0.4.0` in this public path. A second file, `lib/play-webmcp/play-webmcp.global.js`, supports classic scripts. If you use `Assets.at` or `AssetsFinder`, use the [matching URL helper](#keep-your-existing-site-structure) in the next step.
+The library's JavaScript is bundled in the JAR and extracted by Play to `lib/play-webmcp/play-webmcp.js`. Do not add a second route if your assets route already exists. Do not include `0.5.0` in this public path. A second file, `lib/play-webmcp/play-webmcp.global.js`, supports classic scripts. If you use `Assets.at` or `AssetsFinder`, use the [matching URL helper](#keep-your-existing-site-structure) in the next step.
 
 ## Your first tool in two files
 
@@ -242,12 +268,12 @@ This also works with a custom assets route such as `/static/*file`. Keep your ex
 
 | Existing setup | Integration |
 | --- | --- |
-| An older Play 3.0.x Java or Scala application | Add the dependency to the Play subproject. Keep its compatible Play, Scala, sbt, and JDK versions. |
+| An existing Play 2.8.x, 2.9.x, or 3.0.x site | Add the matching dependency to the Play subproject. Keep its compatible Play, Scala, sbt, and JDK versions. |
 | Classic JavaScript or jQuery | Use the [classic script option](#alternative-keep-classic-scripts-or-jquery). Keep your existing scripts and add a small adapter for the tool. |
 | `Assets.at` | Keep the route and generate both script URLs with `Assets.at`. The Java example uses this setup. |
 | An injected `AssetsFinder` | Keep passing it to the view and use `assetsFinder.path(...)`. The Scala example uses this setup. |
 | Assets built separately or served by a CDN | Download the matching JavaScript file from the [release](https://github.com/HackInvent/play-webmcp/releases), then serve it through your existing asset pipeline. Use that URL in the view. |
-| Play 2.x or earlier | Migrate to a compatible Play 3.0 application first. This JVM module does not support Play 2.x. |
+| Play 2.0–2.7 or Play 1.x | These versions are outside the published compatibility range; upgrade to a listed Play line first. |
 
 For `AssetsFinder`, `play.assets.urlPrefix` must match the public asset URL, including any site prefix. For example, a site deployed at `/shop` with an `/assets/*file` route uses:
 
@@ -490,7 +516,7 @@ The `signal` **option** controls how long tools stay registered. A handler's `co
 - The helper produces inert JSON, and the code runs in an external file. Allow that file in your usual CSP; the module does not require `unsafe-inline` or `unsafe-eval`. If your CSP requires a nonce on external scripts, keep using your application's existing nonce helper.
 - Do not give a declarative tool and an imperative tool on the page the same name. The runtime does not manage tools registered by another library.
 - Routes do not automatically become tools. Each exposed action and handler must be provided explicitly.
-- Play 2.x and Play 3.1 previews are outside the current test matrix. Future Play 3.x releases and other Scala or browser/agent combinations need verification before they can be claimed as supported.
+- Play 2.0–2.7, Play 1.x, and Play 3.1 previews are outside the current test matrix. Other Play releases, Scala versions, and browser/agent combinations need verification before they can be claimed as supported.
 
 ## Try the Java and Scala applications
 
@@ -507,6 +533,19 @@ sbt "scalaExample/run 19002"
 ```
 
 Open `http://localhost:19002`. Each page contains a search, a support form, and a visible WebMCP status. The Java example uses classic scripts and `Assets.at` under `/static`; the Scala example uses ES modules and an injected `AssetsFinder` under `/assets`. Both use URLs generated by Play. The demo interfaces and sample product names are currently in French. The examples use a fixed product list and do not store requests. Their session keys are local demo keys; use your own configuration when deploying an application.
+
+These commands run the Play 3 examples. The same example sources are compiled against the selected public artifact by `consumer-check.sh`; no Play 3 application code is required in your Play 2 site.
+
+To run the automated browser scenarios against a Play 2 installation, first install the [browser test prerequisites](#development-and-testing), then choose a stack:
+
+```bash
+# Uses your JAVA_HOME; choose JDK 8 or 11 for Play 2.8.
+PLAY_VERSION=2.8.22 WEBMCP_BROWSER_CHECK=1 bash scripts/consumer-check.sh 2.12.20
+# Choose JDK 11, 17, or 21 for Play 2.9.
+PLAY_VERSION=2.9.11 WEBMCP_BROWSER_CHECK=1 bash scripts/consumer-check.sh 3.3.6
+```
+
+These commands build temporary applications, run the tests, then stop and remove the applications.
 
 To follow an action from the view to the server:
 
@@ -528,7 +567,7 @@ sbt javaExample/stage scalaExample/stage
 bash scripts/browser-check.sh
 ```
 
-After editing the runtime or changing the module version, run `sbt webmcp/clean javaExample/clean scalaExample/clean` before building the examples again. This removes extracted WebJar files that Play may otherwise reuse.
+After editing the runtime or changing the module version, run `sbt webmcp/clean webmcpPlay28/clean webmcpPlay29/clean javaExample/clean scalaExample/clean` before building the examples again. This removes extracted WebJar files that Play may otherwise reuse.
 
 The last script starts and stops its own applications on ports 19001 and 19002. These ports must be free. To test an application that is already running:
 
@@ -544,16 +583,28 @@ The checks cover:
 - The example handlers with delayed responses, network and JSON errors, cancellation, and confirmation. These unit tests use DOM and HTTP test doubles.
 - A real browser: forms with and without JavaScript, the asset from the JAR, native WebMCP discovery and calls, component replacement that preserves other tools, confirmation and cancellation of a write operation, delayed support responses, and network failures. These tests do not install a fake WebMCP API and fail if the native API is missing.
 
-The [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) builds the distributable JARs once against Play 3.0.0, Scala 2.13.12/3.3.1, and Java 11. Independent Java and Scala applications then install those same JARs:
+The [CI](https://github.com/HackInvent/play-webmcp/actions/workflows/ci.yml) uses JDK 11 to build all six distributable JARs from shared sources: two for each Play line. It checks their bytecode, Play dependency scope, Scala versions, bundled JavaScript, sources, and checksums. Independent Java and Scala applications then install those same JARs:
 
 | Installation check | Versions |
 | --- | --- |
-| Every stable Play 3.0 release | 3.0.0–3.0.11, with Scala 2.13.18 and 3.3.6 on Java 11 |
-| Older build setup | Play 3.0.0 with Scala 2.13.12 and 3.3.1 on Java 11, using sbt 1.9.9 |
-| Additional JDKs | Play 3.0.11 with both Scala families on Java 17 and 21 |
-| Browser integration | Classic scripts with Java `Assets.at`; ES modules with Scala `AssetsFinder`; both at `/` and `/shop`, with native tool calls, component replacement, and ordinary forms |
+| Every stable Play 3.0 release listed above | 3.0.0–3.0.11, Scala 2.13.18 and 3.3.6, Java 11, sbt 1.11.7 |
+| Every stable Play 2.9 release listed above | 2.9.0–2.9.11, Scala 2.13.18 and 3.3.6, Java 11, sbt 1.11.7 |
+| Every stable Play 2.8 release listed above | 2.8.0–2.8.22, Scala 2.12.20 and 2.13.18, Java 11; sbt 1.3.13 through Play 2.8.7, then 1.5.8 |
+| Minimum Scala versions on Play 3.0.0 and 2.9.0 | Scala 2.13.12 and 3.3.1, Java 11, sbt 1.9.9 |
+| Oldest Play 2.8 setup | Play 2.8.0, Scala 2.12.10 and 2.13.1, Java 8, sbt 1.3.13 |
+| Additional Java 8 coverage | Play 2.8.22, Scala 2.12.20 and 2.13.18, sbt 1.5.8 |
+| Additional JDKs | Play 3.0.11 and 2.9.11 with both Scala families on Java 17 and 21 |
+| Browser integration | Play 3 examples, Play 2.9.11 / Scala 3, and Play 2.8.22 / Scala 2.12 / Java 8; each with Java and Scala views at `/` and `/shop` |
 
-The installation tests also compare the application's Play and Scala dependencies before and after adding the module. The browser version is pinned by `package-lock.json` to make tests reproducible.
+The browser scenarios include classic scripts with Java `Assets.at`, ES modules with Scala `AssetsFinder`, native tool calls, component replacement, and ordinary forms. They check missing and invalid CSRF tokens as well as successful submissions. The browser version is pinned by `package-lock.json`.
+
+The installation checks compare each application's Play, Scala, Twirl, JSON, and Akka/Pekko dependencies with an equivalent application without this module. They also fail if the test framework does not discover the example suite, which is especially important with older sbt versions.
+
+To build and test all module variants locally with **JDK 11**:
+
+```bash
+sbt +webmcp/test +webmcpPlay29/test +webmcpPlay28/test
+```
 
 To verify installation of the public JARs in independent projects:
 
@@ -565,25 +616,29 @@ This script creates two temporary applications, downloads the module from the pu
 
 ```bash
 PLAY_VERSION=3.0.0 SBT_VERSION=1.9.9 bash scripts/consumer-check.sh 2.13.12
-PLAY_VERSION=3.0.11 bash scripts/consumer-check.sh 3.3.6
+PLAY_VERSION=2.9.0 SBT_VERSION=1.9.9 bash scripts/consumer-check.sh 3.3.1
+PLAY_VERSION=2.8.0 SBT_VERSION=1.3.13 bash scripts/consumer-check.sh 2.12.10
 WEBMCP_TEST_CONTEXT_PATH=/shop bash scripts/browser-check.sh
 ```
 
-The consumer script uses your selected `JAVA_HOME`; `SBT_VERSION` selects the existing build tool version. `WEBMCP_VERSION` and `WEBMCP_REPOSITORY` can select a different module release or a local Maven repository.
+The consumer script uses your selected `JAVA_HOME` and chooses the artifact and default Scala families from `PLAY_VERSION`. `SBT_VERSION` selects the build tool version. `WEBMCP_VERSION` and `WEBMCP_REPOSITORY` can select a different module release or a local Maven repository.
 
 To try a local change in your own project:
 
 ```bash
+# Run with JDK 11; choose the project for the Play line you are changing.
 sbt +webmcp/publishLocal
+sbt +webmcpPlay29/publishLocal
+sbt +webmcpPlay28/publishLocal
 ```
 
 Keep the same `libraryDependencies` line in the consuming project, then run `sbt clean update` there before rebuilding. The locally published artifacts will be available on your machine.
 
 ## Upgrading
 
-When moving from **0.1.0–0.3.0 to 0.4.0**:
+When moving from **0.1.0–0.4.0 to 0.5.0**:
 
-1. Set the dependency version to `0.4.0` in the Play subproject.
+1. Choose the artifact for your Play line and set its version to `0.5.0` in the Play subproject. Remove a previous WebMCP dependency if you are changing artifact names.
 2. Run `sbt clean update`, then rebuild and reload the page. This clears the older WebJar files that Play may have extracted into `target/`.
 3. If you serve the runtime separately or through a CDN, replace it with the file from the same release and refresh the asset cache.
 4. Repeat [the integration check](#5-check-the-integration) with your browser and agent.
@@ -592,6 +647,7 @@ Existing helper calls and the ES module path stay the same. The classic entry po
 
 | Release | Main addition |
 | --- | --- |
+| [0.5.0](https://github.com/HackInvent/play-webmcp/releases/tag/v0.5.0) | Separate artifacts for Play 2.8, 2.9, and 3.0; Java 8 and Scala 2.12 support for Play 2.8. |
 | [0.4.0](https://github.com/HackInvent/play-webmcp/releases/tag/v0.4.0) | Classic script entry point; verified integration with `Assets.at`, `AssetsFinder`, and sbt 1.9.9. |
 | [0.3.0](https://github.com/HackInvent/play-webmcp/releases/tag/v0.3.0) | Component registration using `root` and independent cleanup. |
 | [0.2.0](https://github.com/HackInvent/play-webmcp/releases/tag/v0.2.0) | Java 11 baseline and installation tests across Play 3.0 releases. |
@@ -616,6 +672,8 @@ The first-tool page should contain one metadata block. That count confirms the H
 
 | Symptom | What to check |
 | --- | --- |
+| `NoSuchMethodError`, duplicate classes, or unexpected Play/Twirl versions | Keep only the artifact for your Play line. The Play 3 JAR is not interchangeable with the Play 2 JARs. Clean and rebuild after changing the dependency. |
+| Old Play 2.8 build fails before loading the application | Check its existing sbt/plugin combination. Use its existing compatible sbt. The test defaults are 1.3.13 for Play 2.8.0–2.8.7 and 1.5.8 for later 2.8 releases. A newer sbt can cause Twirl compiler errors or Scala XML conflicts before the module is loaded. |
 | Dependency cannot be resolved | Add the public Maven resolver and dependency to the same Play subproject; check access to `raw.githubusercontent.com` through your build's proxy or mirror. Use `%%`, even for Java projects. |
 | `supported: false` | WebMCP enabled, HTTPS/localhost context, `tools` policy, and browser version. The library does not install a browser polyfill. |
 | `supported: true`, but `registered` is empty | Render `WebMcp.tool(...)` before registration. Check the selected `root` and register newly inserted metadata after the HTML is mounted. |
@@ -629,7 +687,7 @@ The first-tool page should contain one metadata block. That count confirms the H
 | `unknown handler` | The `handler` field must match a function passed to `registerTools`. Functions on `window` are not discovered automatically. |
 | Duplicate tool name | Load the adapter once. Use unique names across the page, choose one script mode, and avoid overlapping component roots. |
 | POST rejected with 403 | Session, form CSRF token, and server authorization. Make sure the request sends the required session and token. |
-| `UnsupportedClassVersionError` on Java 11 | Use module 0.2.0 or later; 0.1.0 required Java 17. |
+| `UnsupportedClassVersionError` | Play 2.8 on Java 8 needs `play-webmcp-play28` 0.5.0 or later. Play 2.9/3.0 artifacts need Java 11 or later; module 0.1.0 needed Java 17. |
 | Scala compilation error | The artifact suffix must match your project's Scala version; use `%%` with sbt. |
 | `root must be a document or a DOM container` | The component selector returned `null`, or `root` is not a DOM container. Insert the component HTML before registering its tools. |
 | Tool still present after a view replacement | Call `dispose()` and inspect cleanup errors before registering again. |
