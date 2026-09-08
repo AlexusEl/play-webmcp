@@ -1,4 +1,4 @@
 GET     /                   controllers.scalaexample.HomeController.index
 GET     /api/products        controllers.scalaexample.HomeController.products
 POST    /support            controllers.scalaexample.HomeController.support
-GET     /assets/*file        controllers.Assets.versioned(path="/public", file: Asset)
+GET     /assets/*file        controllers.Assets.versioned(file)

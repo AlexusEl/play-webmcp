@@ -9,7 +9,7 @@ import play.api.i18n.Messages
 import play.api.mvc._
 import play.filters.csrf.{CSRFAddToken, CSRFCheck}
 
-final class HomeController @Inject()(cc: ControllerComponents, addToken: CSRFAddToken, checkToken: CSRFCheck)
+final class HomeController @Inject()(cc: ControllerComponents, addToken: CSRFAddToken, checkToken: CSRFCheck, assetsFinder: controllers.AssetsFinder)
     extends AbstractController(cc) {
   private val allProducts = Seq("Clavier", "Souris", "Écran")
   private val supportForm = Form(tuple(
@@ -20,7 +20,7 @@ final class HomeController @Inject()(cc: ControllerComponents, addToken: CSRFAdd
   def index: Action[AnyContent] = addToken(Action { implicit request =>
     implicit val messages: Messages = messagesApi.preferred(request)
     val query = request.getQueryString("query").getOrElse("")
-    Ok(views.html.scalaIndex(matching(query), query, supportForm, ""))
+    Ok(views.html.scalaIndex(assetsFinder, matching(query), query, supportForm, ""))
   })
 
   def products: Action[AnyContent] = Action { request =>
@@ -37,13 +37,13 @@ final class HomeController @Inject()(cc: ControllerComponents, addToken: CSRFAdd
     supportForm.bindFromRequest().fold(
       invalid => {
         if (wantsJson) BadRequest(Json.obj("ok" -> false, "errors" -> invalid.errors.groupMap(_.key)(error => messages(error.message, error.args: _*))))
-        else BadRequest(views.html.scalaIndex(allProducts, "", invalid, "Corrigez les champs du formulaire."))
+        else BadRequest(views.html.scalaIndex(assetsFinder, allProducts, "", invalid, "Corrigez les champs du formulaire."))
       },
       value => {
         // A real application would persist the request here using its existing service.
         val message = s"Demande validée pour ${value._1} (démonstration, sans enregistrement)."
         if (wantsJson) Ok(Json.obj("ok" -> true, "message" -> message))
-        else Ok(views.html.scalaIndex(allProducts, "", supportForm, message))
+        else Ok(views.html.scalaIndex(assetsFinder, allProducts, "", supportForm, message))
       }
     )
   }))

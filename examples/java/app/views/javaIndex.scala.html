@@ -7,10 +7,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Play WebMCP — exemple Java</title>
-    <link rel="stylesheet" href="@controllers.routes.Assets.versioned("stylesheets/main.css")">
-    <script id="page-tools" type="module"
-            data-webmcp-runtime="@controllers.routes.Assets.versioned("lib/play-webmcp/play-webmcp.js")"
-            src="@controllers.routes.Assets.versioned("javascripts/app.js")"></script>
+    <link rel="stylesheet" href="@controllers.routes.Assets.at("stylesheets/main.css")">
+    <script defer src="@controllers.routes.Assets.at("lib/play-webmcp/play-webmcp.global.js")"></script>
+    <script id="page-tools" defer
+            data-webmcp-runtime="@controllers.routes.Assets.at("lib/play-webmcp/play-webmcp.js")"
+            src="@controllers.routes.Assets.at("javascripts/app.js")"></script>
 </head>
 <body><main>
     <h1>Play WebMCP · Java</h1>

@@ -36,7 +36,19 @@ test('real browser: ordinary forms, packaged module and server validation withou
   t.after(() => browser.close());
   t.diagnostic(`Browser ${browser.version()}; sample ${baseURL}; WebMCP disabled using browser flags`);
   const context = await browser.newContext({ baseURL });
+  await context.addInitScript(() => {
+    window.searchProducts = () => 'Existing site search';
+    window.readTools = () => 'Existing site helper';
+  });
   const { page, errors } = await openPage(context);
+  assert.deepEqual(await page.evaluate(() => [window.searchProducts(), window.readTools()]),
+    ['Existing site search', 'Existing site helper'], 'Integrating the runtime must preserve existing global functions');
+  const classic = (await page.title()).endsWith('Java');
+  assert.equal(await page.locator('#page-tools').evaluate(script => script.type === 'module'), !classic);
+  if (classic) {
+    assert.equal(await page.evaluate(() => typeof globalThis.PlayWebMcp?.registerTools), 'function');
+    assert.equal(await page.locator('script[src$="play-webmcp.global.js"]').evaluate(script => script.defer), true);
+  }
   assert.equal(await page.evaluate(() =>
     Boolean(document.modelContext?.registerTool || navigator.modelContext?.registerTool)), false);
   assert.match(await page.locator('#webmcp-status').textContent(), /ne fournit pas WebMCP/);
@@ -250,7 +262,7 @@ test('real browser: replacing a component preserves other native page tools', { 
 
   const registered = await page.evaluate(async () => {
     const runtimeUrl = document.getElementById('page-tools').dataset.webmcpRuntime;
-    const { registerTools } = await import(runtimeUrl);
+    const { registerTools } = globalThis.PlayWebMcp || await import(runtimeUrl);
     function panel(side, text) {
       const root = document.createElement('section');
       const value = document.createElement('p');

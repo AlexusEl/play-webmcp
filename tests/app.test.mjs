@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { registerTools } from '../module/src/main/assets/play-webmcp.js';
 
 // Application handler tests with DOM/HTTP doubles. Native integration is covered in browser.mjs.
 let instance = 0;
@@ -13,6 +14,7 @@ async function application(t, language) {
   const elements = { '#support-form': supportForm, '#search-form': searchForm,
     '#support-result': supportResult, '#webmcp-status': status };
   const replacements = {
+    PlayWebMcp: { registerTools },
     document: {
       modelContext: { registerTool(definition) { definitions.set(definition.name, definition); } },
       getElementById: () => ({ dataset: { webmcpRuntime: new URL('../module/src/main/assets/play-webmcp.js', import.meta.url).href } }),
@@ -41,6 +43,8 @@ async function application(t, language) {
     Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
   }
   await import(new URL(`../examples/${language}/public/javascripts/app.js?test=${++instance}`, import.meta.url));
+  // The classic script starts registration without a top-level await.
+  await new Promise(resolve => setImmediate(resolve));
   return { execute: definitions.get('createSupportRequest').execute, fields, supportResult };
 }
 const deferred = () => {

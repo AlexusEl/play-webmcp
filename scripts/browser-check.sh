@@ -22,7 +22,8 @@ examples/java/target/universal/stage/bin/play-webmcp-java-example \
   >"$task_test_dir/java.log" 2>&1 &
 java_pid=$!
 examples/scala/target/universal/stage/bin/play-webmcp-scala-example \
-  -J-Xms64m -J-Xmx384m -Dhttp.port=19002 -Dplay.http.context="$task_context_path" -Dpidfile.path="$task_test_dir/scala.pid" \
+  -J-Xms64m -J-Xmx384m -Dhttp.port=19002 -Dplay.http.context="$task_context_path" \
+  -Dplay.assets.urlPrefix="${task_context_path%/}/assets" -Dpidfile.path="$task_test_dir/scala.pid" \
   >"$task_test_dir/scala.log" 2>&1 &
 scala_pid=$!
 

@@ -35,9 +35,11 @@ final class ExampleSuite extends FunSuite {
       assertEquals((contentAsJson(search) \ "products").as[Seq[String]], Seq("Clavier"))
       val invalid = route(app, FakeRequest(GET, "/api/products?query=" + "x" * 101)).get
       assertEquals(status(invalid), BAD_REQUEST)
-      val script = route(app, FakeRequest(GET, "/static/lib/play-webmcp/play-webmcp.js")).get
-      assertEquals(status(script), OK)
-      assert(contentAsString(script).contains("registerTools"))
+      for (file <- Seq("play-webmcp.js", "play-webmcp.global.js")) {
+        val script = route(app, FakeRequest(GET, "/static/lib/play-webmcp/" + file)).get
+        assertEquals(status(script), OK)
+        assert(contentAsString(script).contains("registerTools"))
+      }
     }
   }
 

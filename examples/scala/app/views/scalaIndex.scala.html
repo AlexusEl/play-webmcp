@@ -1,4 +1,4 @@
-@(products: Seq[String], query: String, supportForm: play.api.data.Form[(String, String)], notice: String)(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
+@(assetsFinder: controllers.AssetsFinder, products: Seq[String], query: String, supportForm: play.api.data.Form[(String, String)], notice: String)(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import play.api.libs.json.Json
 @import playwebmcp.scaladsl.WebMcp
 <!doctype html>
@@ -7,10 +7,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Play WebMCP — exemple Scala</title>
-    <link rel="stylesheet" href="@controllers.routes.Assets.versioned("stylesheets/main.css")">
+    <link rel="stylesheet" href="@assetsFinder.path("stylesheets/main.css")">
     <script id="page-tools" type="module"
-            data-webmcp-runtime="@controllers.routes.Assets.versioned("lib/play-webmcp/play-webmcp.js")"
-            src="@controllers.routes.Assets.versioned("javascripts/app.js")"></script>
+            data-webmcp-runtime="@assetsFinder.path("lib/play-webmcp/play-webmcp.js")"
+            src="@assetsFinder.path("javascripts/app.js")"></script>
 </head>
 <body><main>
     <h1>Play WebMCP · Scala</h1>

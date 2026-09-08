@@ -1,5 +1,5 @@
 ThisBuild / organization := "io.github.alexusel"
-ThisBuild / version := "0.3.0"
+ThisBuild / version := "0.4.0"
 ThisBuild / scalaVersion := "2.13.18"
 ThisBuild / crossScalaVersions := Seq("2.13.18", "3.3.6")
 ThisBuild / homepage := Some(url("https://github.com/HackInvent/play-webmcp"))
@@ -25,8 +25,18 @@ lazy val webmcp = (project in file("module"))
     Compile / resourceGenerators += Def.task {
       val runtime = (Compile / resourceManaged).value / "META-INF" / "resources" /
         "webjars" / "play-webmcp" / version.value / "play-webmcp.js"
-      IO.copyFile(baseDirectory.value / "src" / "main" / "assets" / "play-webmcp.js", runtime)
-      Seq(runtime)
+      val source = baseDirectory.value / "src" / "main" / "assets" / "play-webmcp.js"
+      IO.copyFile(source, runtime)
+      // Both entry points come from the same implementation; consumers do not need Node.js.
+      val classic = runtime.getParentFile / "play-webmcp.global.js"
+      val code = IO.read(source)
+      val declaration = "export async function registerTools"
+      require(code.sliding(declaration.length).count(_ == declaration) == 1,
+        "Update the classic entry point when the runtime exports change")
+      IO.write(classic, "(function () {\n'use strict';\n" +
+        code.replace(declaration, "async function registerTools") +
+        "\nglobalThis.PlayWebMcp = Object.freeze({ registerTools });\n})();\n")
+      Seq(runtime, classic)
     }.taskValue,
     Compile / packageSrc / mappings +=
       (baseDirectory.value / "src" / "main" / "assets" / "play-webmcp.js") -> "play-webmcp.js",
