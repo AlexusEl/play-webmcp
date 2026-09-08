@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 task_context_path=${WEBMCP_TEST_CONTEXT_PATH:-/}
+task_examples_dir=${WEBMCP_EXAMPLES_DIR:-"$PWD/examples"}
 if [[ "$task_context_path" != /* || "$task_context_path" == //* ]]; then
   echo "WEBMCP_TEST_CONTEXT_PATH must be a local path such as / or /shop" >&2
   exit 2
@@ -17,11 +18,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-examples/java/target/universal/stage/bin/play-webmcp-java-example \
+"$task_examples_dir/java/target/universal/stage/bin/play-webmcp-java-example" \
   -J-Xms64m -J-Xmx384m -Dhttp.port=19001 -Dplay.http.context="$task_context_path" -Dpidfile.path="$task_test_dir/java.pid" \
   >"$task_test_dir/java.log" 2>&1 &
 java_pid=$!
-examples/scala/target/universal/stage/bin/play-webmcp-scala-example \
+"$task_examples_dir/scala/target/universal/stage/bin/play-webmcp-scala-example" \
   -J-Xms64m -J-Xmx384m -Dhttp.port=19002 -Dplay.http.context="$task_context_path" \
   -Dplay.assets.urlPrefix="${task_context_path%/}/assets" -Dpidfile.path="$task_test_dir/scala.pid" \
   >"$task_test_dir/scala.log" 2>&1 &

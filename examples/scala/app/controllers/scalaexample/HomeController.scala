@@ -36,7 +36,12 @@ final class HomeController @Inject()(cc: ControllerComponents, addToken: CSRFAdd
     val wantsJson = request.headers.get(ACCEPT).exists(_.contains("application/json"))
     supportForm.bindFromRequest().fold(
       invalid => {
-        if (wantsJson) BadRequest(Json.obj("ok" -> false, "errors" -> invalid.errors.groupMap(_.key)(error => messages(error.message, error.args: _*))))
+        if (wantsJson) {
+          val errors = invalid.errors.groupBy(_.key).map { case (key, values) =>
+            key -> values.map(error => messages(error.message, error.args: _*))
+          }
+          BadRequest(Json.obj("ok" -> false, "errors" -> errors))
+        }
         else BadRequest(views.html.scalaIndex(assetsFinder, allProducts, "", invalid, "Corrigez les champs du formulaire."))
       },
       value => {

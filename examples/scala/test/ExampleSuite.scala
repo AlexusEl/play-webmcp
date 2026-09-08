@@ -14,7 +14,7 @@ final class ExampleSuite extends FunSuite {
 
   test("renders tools and a normal HTML form with a CSRF token") {
     withApplication { app =>
-      implicit val materializer: org.apache.pekko.stream.Materializer = app.materializer
+      implicit val materializer = app.materializer
       val result = route(app, FakeRequest(GET, "/")).get
       assertEquals(status(result), OK)
       val html = contentAsString(result)
@@ -29,7 +29,7 @@ final class ExampleSuite extends FunSuite {
 
   test("searches through the existing JSON action and serves the packaged runtime") {
     withApplication { app =>
-      implicit val materializer: org.apache.pekko.stream.Materializer = app.materializer
+      implicit val materializer = app.materializer
       val search = route(app, FakeRequest(GET, "/api/products?query=clav")).get
       assertEquals(status(search), OK)
       assertEquals((contentAsJson(search) \ "products").as[Seq[String]], Seq("Clavier"))
@@ -45,7 +45,7 @@ final class ExampleSuite extends FunSuite {
 
   test("the support action enforces CSRF and server validation for agent and human requests") {
     withApplication { app =>
-      implicit val materializer: org.apache.pekko.stream.Materializer = app.materializer
+      implicit val materializer = app.materializer
       val page = route(app, FakeRequest(GET, "/")).get
       val token = "name=\"csrfToken\"[^>]*value=\"([^\"]+)\"".r
         .findFirstMatchIn(contentAsString(page)).get.group(1)

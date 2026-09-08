@@ -1,7 +1,9 @@
 package controllers.javaexample;
 
 import java.util.List;
-import java.util.Map;
+import java.util.Arrays;
+import java.util.Collections;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.Locale;
 import javax.inject.Inject;
 import play.data.Form;
@@ -17,7 +19,7 @@ import playwebmcp.Tool;
 
 /** Existing Play actions remain responsible for validation and CSRF protection. */
 public final class HomeController extends Controller {
-    private static final List<String> PRODUCTS = List.of("Clavier", "Souris", "Écran");
+    private static final List<String> PRODUCTS = Collections.unmodifiableList(Arrays.asList("Clavier", "Souris", "Écran"));
     private final FormFactory forms;
 
     private static final Tool SEARCH = Tool.create(
@@ -55,17 +57,20 @@ public final class HomeController extends Controller {
     public Result products(Http.Request request) {
         String query = query(request);
         if (query.length() > 100) {
-            return badRequest(Json.toJson(Map.of("ok", false, "errors",
-                Map.of("query", "La recherche doit contenir au maximum 100 caractères."))));
+            ObjectNode body = Json.newObject().put("ok", false);
+            body.putObject("errors").put("query", "La recherche doit contenir au maximum 100 caractères.");
+            return badRequest(body);
         }
-        return ok(Json.toJson(Map.of("ok", true, "products", matching(query))));
+        ObjectNode body = Json.newObject().put("ok", true);
+        body.set("products", Json.toJson(matching(query)));
+        return ok(body);
     }
 
     @RequireCSRFCheck @AddCSRFToken public Result support(Http.Request request) {
         Form<SupportRequest> form = forms.form(SupportRequest.class).bindFromRequest(request);
         if (form.hasErrors()) {
             if (wantsJson(request)) {
-                com.fasterxml.jackson.databind.node.ObjectNode body = Json.newObject().put("ok", false);
+                ObjectNode body = Json.newObject().put("ok", false);
                 body.set("errors", form.errorsAsJson());
                 return badRequest(body);
             }
@@ -75,7 +80,7 @@ public final class HomeController extends Controller {
         // A real application would persist the request here using its existing service.
         String message = "Demande validée pour " + form.get().name + " (démonstration, sans enregistrement).";
         if (wantsJson(request)) {
-            return ok(Json.toJson(Map.of("ok", true, "message", message)));
+            return ok(Json.newObject().put("ok", true).put("message", message));
         }
         return ok(views.html.javaIndex.render(SEARCH, SUPPORT, PRODUCTS, "",
             forms.form(SupportRequest.class), message, request.asScala()));
