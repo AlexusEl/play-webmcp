@@ -20,7 +20,7 @@ The module provides Twirl helpers and a small JavaScript file with no browser de
 - [Keep classic scripts or jQuery](#alternative-keep-classic-scripts-or-jquery) and [existing asset setups](#keep-your-existing-site-structure)
 - [Java and Scala APIs](#java-and-scala-apis), [existing forms](#add-webmcp-to-an-existing-form), and [Play actions](#reuse-your-actions-and-display-the-result)
 - [Browser and agent compatibility](#browsers-and-agents)
-- [Dynamic views](#components-and-pages-updated-without-a-reload) and [lifecycle](#lifecycle-csp-and-limitations)
+- [Dynamic views](#components-and-pages-updated-without-a-reload) and [JavaScript API reference](#javascript-api-reference)
 - [Run the examples](#try-the-java-and-scala-applications), [develop and test](#development-and-testing), and [upgrade](#upgrading)
 - [Troubleshooting](#troubleshooting) and [contributing](#contributing-and-license)
 
@@ -299,7 +299,19 @@ val metadata = WebMcp.tool(
 
 The schema describes the expected parameters; it does not replace server validation. Tool names must contain 1 to 128 ASCII letters, digits, dots, hyphens, or underscores. Descriptions are required. JavaScript functions are provided explicitly, without `eval` or automatic lookup in global variables.
 
+| Helper | Purpose |
+| --- | --- |
+| Java `Tool.create(name, description, inputSchemaJson, handler)` | Build metadata from a JSON schema string. It does not execute an action. |
+| Java `tool.withReadOnly(true)` | Return a new tool with a hint that the action only reads data. Keep the returned value. |
+| Java `WebMcp.tool(tool)` / Scala `WebMcp.tool(...)` | Render metadata as a Twirl `Html` value. |
+| `WebMcp.formAttributes(name, description, autoSubmit)` | Render form attributes; `autoSubmit` defaults to `false` when omitted. |
+| `WebMcp.paramDescription(description)` | Describe an existing form field to the agent. |
+
+Both APIs escape their output. Render the returned `Html` directly in Twirl; do not build the JSON script or HTML attributes by string concatenation.
+
 ## Add WebMCP to an existing form
+
+Choose this mode when your target browser and agent support declarative tools. The browser reads the form attributes directly, so this form does not need `registerTools` or either runtime file. For ChatGPT, use the JavaScript integration instead; see [browser and agent compatibility](#browsers-and-agents).
 
 ```scala
 @import playwebmcp.javadsl.WebMcp
@@ -336,6 +348,8 @@ sequenceDiagram
 
 The examples demonstrate a search and a support request. Their JavaScript functions use `fetch`, preserve the session, pass the existing CSRF token, and display the results. The server returns `{ok: true, ...}` or `{ok: false, errors: ...}`. The module preserves the result returned by your function.
 
+The schema's properties become the handler's input object. For example, the `query` property in the search metadata is available as `input.query` in `searchProducts(input, context)`. A handler can return a plain value or a promise. Return JSON-compatible data that tells the agent what happened; a DOM element or an HTTP `Response` object is not a useful result.
+
 The execution context supplied by the browser is passed as the handler's second argument. If a cancellation signal is available, pass `context.signal` to `fetch`, as in the examples. Check `context.signal?.throwIfAborted()` before changing the page or asking for confirmation, and after awaiting a response.
 
 Each caller receives its own result, while only the latest request updates the examples' shared status. Support requests show a pending notice and an explicit message if sending cannot be confirmed. A network failure or cancellation does not prove that the server rejected a write: check its state before trying again. The examples never retry a write automatically.
@@ -344,13 +358,13 @@ Keep access checks and validation in your Play actions. A description or `readOn
 
 ## Browsers and agents
 
-Documented status as of **September 6, 2026**. “Documented” means stated in the official source; it does not mean tested with your account, model, or browser version.
+Official documentation checked on **September 8, 2026**. “Documented” means stated in the official source; it does not mean tested with your account, model, or browser version.
 
 | Environment | Support and limitations | Verification |
 | --- | --- | --- |
 | **Chrome** | Experimental imperative and declarative APIs. Origin trial since Chrome 149; a local flag is available. | Automated native tests on Chrome for Testing 153.0.8010.12. [Chrome](https://developer.chrome.com/docs/ai/webmcp) |
 | **ChatGPT, built-in browser in the desktop app** | Imperative tools on the top-level page are supported depending on product access and model. Declarative forms and iframes are not currently supported. | API compatibility is documented; this project does not claim testing with a ChatGPT account. [OpenAI](https://learn.chatgpt.com/docs/webmcp) |
-| **Edge** | WebMCP is listed in the origin trials for versions 150–152. Using the browser does not guarantee that Copilot will call your tools. | Documented, not tested by this CI. [Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/web-platform/release-notes/152) |
+| **Edge** | WebMCP is listed as an origin trial in the Edge 152 documentation. Using the browser does not guarantee that Copilot will call your tools. | Documented, not tested by this CI. [Microsoft](https://learn.microsoft.com/en-us/microsoft-edge/web-platform/release-notes/152) |
 | **Custom agent or extension** | Works if the agent can discover and invoke the page's WebMCP tools. No specific model provider is required. | Test with your agent. [Specification](https://webmachinelearning.github.io/webmcp/) |
 | **Firefox, Safari, or a browser without the API** | The page remains usable by people. This project does not claim native WebMCP support. | The scenario without WebMCP is tested in Chromium. |
 
@@ -358,8 +372,9 @@ Documented status as of **September 6, 2026**. “Documented” means stated in 
 
 1. Open your application in the built-in browser of the ChatGPT desktop app.
 2. Sign in to your application if needed.
-3. Check the available site tools in the browser toolbar.
-4. Try “Read the title of this page” with the first-tool example, or “Search for the product named Clavier” in the demo applications. Their sample product names are in French; “Clavier” means “keyboard”.
+3. Check that **Enable site tools** is on under **Settings → Browser → Permissions**.
+4. Open **Site tools → Available site tools** in the browser's address bar and look for `get_page_title`.
+5. Try “Read the title of this page” with the first-tool example, or “Search for the product named Clavier” in the demo applications. Their sample product names are in French; “Clavier” means “keyboard”.
 
 Use imperative tools on the top-level page. See the [official page](https://learn.chatgpt.com/docs/webmcp) for currently eligible models, accounts, and versions. Opening the ChatGPT website in a Chrome tab is not equivalent to using its built-in browser.
 
@@ -433,12 +448,45 @@ flowchart LR
 
 `root` must be a container in the same document. With WebMCP available, a missing container (`null`) raises an error before any tools are registered. An empty container registers no tools. Omitting `root` keeps the original behavior of reading the whole document. You can also pass your component's `AbortSignal` with `{ root, signal }`; await `dispose()` when you need to check cleanup errors from an older API.
 
+## JavaScript API reference
+
+Both the ES module's `registerTools` export and `window.PlayWebMcp.registerTools` return a promise:
+
+```javascript
+const tools = await registerTools(handlers, options);
+```
+
+`handlers` is an object of named functions. Its keys match the metadata's **handler** field, such as `getPageTitle`, rather than the agent-facing tool name `get_page_title`. Import the function as shown in the first example, or take it from `window.PlayWebMcp` after loading the classic runtime.
+
+### Options and returned values
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `root` | The page's `document` | Read metadata from this container's descendants. Register again after replacing its content. |
+| `signal` | None | An `AbortSignal` that ends this registration's lifetime. Useful when a component is removed. |
+| `document`, `navigator` | The browser globals | Override the environment for tests. Ordinary page code can omit these options. |
+
+| Registration value | Meaning |
+| --- | --- |
+| `supported` | Whether the runtime found a registration API. It does not confirm that an agent is connected. |
+| `api` | `"document.modelContext"`, `"navigator.modelContext"`, or `null`. |
+| `registered` | Names still registered by this call, updated after cleanup. An empty array can also mean no metadata was found. |
+| `cleanupErrors` | Errors from the latest cleanup attempt, each with `{ name, error }`. |
+| `await tools.dispose()` | Remove this call's tools and return `{ remaining, errors }`. Await it before replacing the view. |
+
+Without an API, the result has `supported: false`, `api: null`, and empty arrays. `dispose()` remains safe to call. Metadata is not validated in this case, so also check your integration in a browser with WebMCP enabled.
+
+### Errors and cancellation
+
+An invalid definition produces a `TypeError` before any tools are registered. If the browser rejects registration partway through, the runtime attempts to remove tools already added, then throws `PlayWebMcpRegistrationError`. Its `cause` is the original failure; `registered` lists any tools left after cleanup, and `cleanupErrors` explains why they remain.
+
+On an older API, `dispose()` can return nonempty `remaining` and `errors` arrays. Inspect them before registering a replacement. You can retry `dispose()` after resolving the problem; if the browser cannot unregister tools, reload the page.
+
+The `signal` **option** controls how long tools stay registered. A handler's `context.signal`, when supplied by the browser, concerns **one invocation**. Pass that signal to cancellable work such as `fetch`. Removing a tool does not undo a request already processed by the server. See the [request flow](#reuse-your-actions-and-display-the-result) for handling uncertain write results.
+
 ## Lifecycle, CSP, and limitations
 
-- `registerTools` prefers `document.modelContext`. It uses `navigator.modelContext` if only that older API is available and reports the choice in `api`.
-- Call it once per view or component. Before replacing its HTML, call `await tools.dispose()`, then register the replacement. Check `remaining` and `errors` when using older APIs.
-- The `signal` option lets you cancel registration. The current API removes tools through `AbortController`; older implementations use `unregisterTool` when available.
-- Without the API, `supported` is `false`. A registration error triggers cleanup of tools already added and exposes any cleanup failures.
+- Register once per view or component and [finish cleanup before replacing it](#components-and-pages-updated-without-a-reload). The runtime prefers `document.modelContext` and falls back to `navigator.modelContext`. The current API removes tools through an abort signal; the older API needs `unregisterTool`.
 - The helper produces inert JSON, and the code runs in an external file. Allow that file in your usual CSP; the module does not require `unsafe-inline` or `unsafe-eval`. If your CSP requires a nonce on external scripts, keep using your application's existing nonce helper.
 - Do not give a declarative tool and an imperative tool on the page the same name. The runtime does not manage tools registered by another library.
 - Routes do not automatically become tools. Each exposed action and handler must be provided explicitly.
@@ -460,6 +508,13 @@ sbt "scalaExample/run 19002"
 
 Open `http://localhost:19002`. Each page contains a search, a support form, and a visible WebMCP status. The Java example uses classic scripts and `Assets.at` under `/static`; the Scala example uses ES modules and an injected `AssetsFinder` under `/assets`. Both use URLs generated by Play. The demo interfaces and sample product names are currently in French. The examples use a fixed product list and do not store requests. Their session keys are local demo keys; use your own configuration when deploying an application.
 
+To follow an action from the view to the server:
+
+| Example | Tool metadata and page | JavaScript handlers | Play actions |
+| --- | --- | --- | --- |
+| Java | [Twirl view](examples/java/app/views/javaIndex.scala.html) | [Classic script](examples/java/public/javascripts/app.js) | [Controller](examples/java/app/controllers/javaexample/HomeController.java) |
+| Scala | [Twirl view](examples/scala/app/views/scalaIndex.scala.html) | [ES module](examples/scala/public/javascripts/app.js) | [Controller](examples/scala/app/controllers/scalaexample/HomeController.scala) |
+
 ## Development and testing
 
 Additional prerequisites: **Node.js 22** for browser tests, npm, and Chromium's system dependencies. With JDK 11, 17, or 21 selected:
@@ -473,7 +528,7 @@ sbt javaExample/stage scalaExample/stage
 bash scripts/browser-check.sh
 ```
 
-After editing the runtime or changing the module version, run `sbt clean` before building the examples again. This removes extracted WebJar files that Play may otherwise reuse.
+After editing the runtime or changing the module version, run `sbt webmcp/clean javaExample/clean scalaExample/clean` before building the examples again. This removes extracted WebJar files that Play may otherwise reuse.
 
 The last script starts and stops its own applications on ports 19001 and 19002. These ports must be free. To test an application that is already running:
 
@@ -544,16 +599,35 @@ Existing helper calls and the ES module path stay the same. The classic entry po
 
 ## Troubleshooting
 
+For imperative tools, run this read-only check in the open page's developer console:
+
+```javascript
+console.table({
+  secureContext: window.isSecureContext,
+  currentApi: typeof document.modelContext?.registerTool === 'function',
+  legacyApi: typeof navigator.modelContext?.registerTool === 'function',
+  metadataBlocks: document.querySelectorAll(
+    'script[type="application/json"][data-play-webmcp]'
+  ).length
+});
+```
+
+The first-tool page should contain one metadata block. That count confirms the HTML is present, not that registration succeeded. Check the startup log for `registered`, then use the agent or inspector to call the tool. Calling `registerTools` again just to check it can cause duplicate registrations.
+
 | Symptom | What to check |
 | --- | --- |
-| `supported: false` | WebMCP enabled, HTTPS/localhost context, `tools` policy, and browser version. |
-| No tools in ChatGPT | Built-in browser, access to site tools, imperative mode, and top-level page. |
-| JavaScript returns 404 | Existing assets route, `data-webmcp-runtime` generated by Play, and the path `lib/play-webmcp/play-webmcp.js` without a version number. Put the dependency on the subproject that serves the page. |
+| Dependency cannot be resolved | Add the public Maven resolver and dependency to the same Play subproject; check access to `raw.githubusercontent.com` through your build's proxy or mirror. Use `%%`, even for Java projects. |
+| `supported: false` | WebMCP enabled, HTTPS/localhost context, `tools` policy, and browser version. The library does not install a browser polyfill. |
+| `supported: true`, but `registered` is empty | Render `WebMcp.tool(...)` before registration. Check the selected `root` and register newly inserted metadata after the HTML is mounted. |
+| No tools in ChatGPT | Built-in browser, site tools enabled in settings, eligible account/model, imperative mode, and top-level page. Follow [With ChatGPT](#with-chatgpt). |
+| JavaScript returns 404 | Use your asset route and the path `lib/play-webmcp/play-webmcp.js` or `lib/play-webmcp/play-webmcp.global.js`, without a version number. Put the dependency on the subproject that serves the page. |
+| Script response contains HTML | A login redirect, proxy fallback, or catch-all route may have intercepted the asset URL. Inspect the response body and serve the JavaScript file with its correct content type. |
 | Asset build rejects `import` or `await` | Use the classic runtime to avoid module syntax. Both runtimes use modern JavaScript; serve the selected file outside an older minifier if necessary. |
 | `PlayWebMcp is not defined` | Load `play-webmcp.global.js` before the adapter, using ordered `defer` scripts and your existing asset route. |
 | `AssetsFinder` URLs lose `/shop` | Include the site prefix in `play.assets.urlPrefix`, for example `/shop/assets`. |
 | Old runtime after an upgrade | Run `sbt clean update`, rebuild, and reload the page. Play may keep an older extracted WebJar file in `target/`. |
-| `unknown handler` | The `handler` field must match a function passed to `registerTools`. |
+| `unknown handler` | The `handler` field must match a function passed to `registerTools`. Functions on `window` are not discovered automatically. |
+| Duplicate tool name | Load the adapter once. Use unique names across the page, choose one script mode, and avoid overlapping component roots. |
 | POST rejected with 403 | Session, form CSRF token, and server authorization. Make sure the request sends the required session and token. |
 | `UnsupportedClassVersionError` on Java 11 | Use module 0.2.0 or later; 0.1.0 required Java 17. |
 | Scala compilation error | The artifact suffix must match your project's Scala version; use `%%` with sbt. |
